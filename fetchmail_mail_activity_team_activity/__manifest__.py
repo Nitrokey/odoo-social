@@ -2,7 +2,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 {
-    "name": "Mail Activity on Fetchmail",
+    "name": "Mail Activity on Fetchmail with Team Activity",
     "version": "15.0.1.0.0",
     "development_status": "Alpha",
     "category": "Hidden",
