@@ -19,14 +19,14 @@ QWeb for email templates
 .. |badge4| image:: https://img.shields.io/badge/weblate-Translate%20me-F47D42.png
     :target: https://translation.odoo-community.org/projects/social-15-0/social-15-0-email_template_qweb
     :alt: Translate me on Weblate
-.. |badge5| image:: https://img.shields.io/badge/runbot-Try%20me-875A7B.png
-    :target: https://runbot.odoo-community.org/runbot/205/15.0
-    :alt: Try me on Runbot
+.. |badge5| image:: https://img.shields.io/badge/runboat-Try%20me-875A7B.png
+    :target: https://runboat.odoo-community.org/webui/builds.html?repo=OCA/social&target_branch=15.0
+    :alt: Try me on Runboat
 
 |badge1| |badge2| |badge3| |badge4| |badge5| 
 
-This module was written to allow you to write email templates in QWeb instead
-of jinja2. The advantage here is that with QWeb, you can make use of
+This module was written to allow you to write email templates in `QWeb view` instead
+of QWeb. The advantage here is that with QWeb View, you can make use of
 inheritance and the ``call`` statement, which allows you to reuse designs and
 snippets in multiple templates, making your development process simpler.
 Furthermore, QWeb views are easier to edit with the integrated ACE editor.
@@ -41,9 +41,9 @@ Usage
 
 To use this module, you need to:
 
-#. Select `QWeb` in the field `Body templating engine`
-#. Select a QWeb view to be used to render the body field
-#. Apart from QWeb's standard variables, you also have access to ``object`` and ``email_template``, which are browse records of the current object and the email template in use, respectively.
+#. Select `QWeb View` in the field `Body templating engine`
+#. Select a `QWeb View` to be used to render the body field
+#. Apart from `QWeb View` standard variables, you also have access to ``object`` and ``email_template``, which are browse records of the current object and the email template in use, respectively.
 
 Bug Tracker
 ===========
@@ -76,6 +76,8 @@ Contributors
 * Thomas Fossoul (thomas@niboo.com)
 * Phuc Tran Thanh <phuc@trobz.com>
 * Foram Shah <foram.shah@initos.com>
+* `Trobz <https://trobz.com>`_:
+    * Dzung Tran <dungtd@trobz.com>
 
 Other credits
 ~~~~~~~~~~~~~
