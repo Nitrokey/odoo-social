@@ -113,5 +113,9 @@ class MailActivity(models.Model):
             access_rights_uid=access_rights_uid,
         )
         if limit is not None:
+            # Ensure we have a list to work with
+            if not hasattr(result, "__getitem__"):
+                # Convert Query to list if needed
+                result = list(result)
             result = result[:limit]
         return result
