@@ -2,3 +2,4 @@
 cryptography<37
 extract_msg
 odoo_test_helper
+zulip
