@@ -35,7 +35,7 @@
                     <field name="can_set_webhook" invisible="1" />
                     <group>
                         <field name="name" />
-                        <field name="token" password="True" />
+                        <field name="token" />
                         <field name="gateway_type" />
                         <field name="integrated_webhook_state" />
                         <field name="webhook_url" groups="base.group_no_one" />

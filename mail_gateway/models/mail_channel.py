@@ -18,7 +18,7 @@ class MailChannel(models.Model):
     )
     company_id = fields.Many2one("res.company", default=False)
     channel_type = fields.Selection(
-        selection_add=[("gateway", "Gateway")], ondelete={"gateway": "set default"}
+        selection_add=[("gateway", "Gateway")], ondelete={"gateway": "cascade"}
     )
     gateway_token = fields.Char(
         related="gateway_id.token",

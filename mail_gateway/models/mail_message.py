@@ -1,6 +1,7 @@
 # Copyright 2024 Dixmit
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
+import json
 
 from odoo import api, fields, models
 
@@ -20,7 +21,7 @@ class MailMessage(models.Model):
     gateway_channel_ids = fields.Many2many(
         "res.partner.gateway.channel", compute="_compute_gateway_channel_ids"
     )
-    gateway_channel_data = fields.Json(compute="_compute_gateway_channel_ids")
+    gateway_channel_data = fields.Text(compute="_compute_gateway_channel_ids")
     gateway_message_ids = fields.One2many(
         "mail.message",
         inverse_name="gateway_message_id",
@@ -29,7 +30,7 @@ class MailMessage(models.Model):
     gateway_message_id = fields.Many2one(
         "mail.message", string="Original gateway message"
     )
-    gateway_thread_data = fields.Json(compute="_compute_gateway_thread_data")
+    gateway_thread_data = fields.Text(compute="_compute_gateway_thread_data")
 
     @api.depends("gateway_message_id")
     def _compute_gateway_thread_data(self):
@@ -43,7 +44,8 @@ class MailMessage(models.Model):
                         "model": record.gateway_message_id.model,
                     }
                 )
-            record.gateway_thread_data = gateway_thread_data
+            # Convert to JSON string for Text field
+            record.gateway_thread_data = json.dumps(gateway_thread_data)
 
     @api.depends("notification_ids", "gateway_message_ids")
     def _compute_gateway_channel_ids(self):
@@ -62,10 +64,12 @@ class MailMessage(models.Model):
             else:
                 channels = self.env["res.partner.gateway.channel"]
             record.gateway_channel_ids = channels
-            record.gateway_channel_data = {
+            # Convert to JSON string for Text field
+            gateway_channel_data = {
                 "channels": channels.ids,
                 "partners": channels.partner_id.ids,
             }
+            record.gateway_channel_data = json.dumps(gateway_channel_data)
 
     @api.depends("gateway_notification_ids")
     def _compute_gateway_channel_id(self):

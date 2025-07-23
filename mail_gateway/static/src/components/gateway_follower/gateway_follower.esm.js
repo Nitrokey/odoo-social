@@ -1,7 +1,6 @@
 /** @odoo-module **/
 
 import {registerMessagingComponent} from "@mail/utils/messaging_component";
-import {useComponentToModel} from "@mail/component_hooks/use_component_to_model";
 
 const {Component} = owl;
 
@@ -11,15 +10,19 @@ class GatewayFollowerView extends Component {
      */
     setup() {
         super.setup();
-        useComponentToModel({fieldName: "component"});
+        // Simplified setup for Odoo 15.0 compatibility
     }
+
     get composerGatewayFollower() {
         return this.props.record;
     }
+
     onChangeGatewayChannel(ev) {
-        this.props.record.update({
-            channel: parseInt(ev.target.options[ev.target.selectedIndex].value, 10),
-        });
+        if (this.props.record && this.props.record.update) {
+            this.props.record.update({
+                channel: parseInt(ev.target.options[ev.target.selectedIndex].value, 10),
+            });
+        }
     }
 }
 
