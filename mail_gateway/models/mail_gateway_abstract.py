@@ -39,7 +39,7 @@ class MailGatewayAbstract(models.AbstractModel):
         channel = gateway.env["mail.channel"].create(
             self._get_channel_vals(gateway, token, update)
         )
-        channel._broadcast(channel.channel_member_ids.mapped("partner_id").ids)
+        channel._broadcast(channel.channel_last_seen_partner_ids.mapped("partner_id").ids)
         return channel
 
     def _get_author(self, gateway, update):
@@ -64,7 +64,7 @@ class MailGatewayAbstract(models.AbstractModel):
             "gateway_channel_token": token,
             "gateway_id": gateway.id,
             "channel_type": "gateway",
-            "channel_member_ids": members,
+            "channel_last_seen_partner_ids": members,
             "company_id": gateway.company_id.id,
         }
 

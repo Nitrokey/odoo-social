@@ -34,9 +34,9 @@ class ResPartner(models.Model):
                 [
                     ("channel_type", "=", "gateway"),
                     (
-                        "channel_member_ids",
+                        "channel_last_seen_partner_ids",
                         "in",
-                        self.env["mail.channel.member"]
+                        self.env["mail.channel.partner"]
                         .sudo()
                         ._search(
                             [
