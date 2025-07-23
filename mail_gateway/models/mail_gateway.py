@@ -9,7 +9,7 @@ class MailGateway(models.Model):
 
     name = fields.Char(required=True)
     token = fields.Char(required=True, help="Key used for integration purposes")
-    gateway_type = fields.Selection([], required=True)
+    gateway_type = fields.Selection([], required=True, default=False)
     webhook_key = fields.Char(help="Key used on the connection URL")
     webhook_secret = fields.Char(
         help="""Key used to ensure that the connection is secure and

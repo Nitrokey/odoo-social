@@ -65,7 +65,7 @@ class MailComposeGatewayMessage(models.TransientModel):
     def _get_wizard_channel_ids_domain(self):
         """Domain for wizard_channel_ids field"""
         if self.wizard_partner_ids:
-            return [('partner_id', 'in', self.wizard_partner_ids.ids)]
+            return [("partner_id", "in", self.wizard_partner_ids.ids)]
         return []
 
     def _partner_ids_domain(self):
