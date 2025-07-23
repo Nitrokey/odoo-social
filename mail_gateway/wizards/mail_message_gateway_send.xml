@@ -17,7 +17,7 @@
                     />
                     <field
                         name="gateway_channel_id"
-                        domain="[('id', 'in', context.get('channels')), ('partner_id', '=', partner_id)]"
+                        attrs="{'domain': [('id', 'in', context.get('channels')), ('partner_id', '=', partner_id)]}"
                         options="{'no_open': 1, 'no_create': 1}"
                     />
                 </group>

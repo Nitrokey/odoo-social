@@ -21,7 +21,7 @@
                     string="Gateways"
                     widget="many2many_tags"
                     context="{'mail_gateway_partner_info': 1}"
-                    domain="[('partner_id', 'in', wizard_partner_ids)]"
+                    attrs="{'domain': [('partner_id', 'in', wizard_partner_ids)]}"
                 />
             </field>
             <field name="subject" position="attributes">
