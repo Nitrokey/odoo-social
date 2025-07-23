@@ -13,18 +13,15 @@ class ResPartner(models.Model):
         "res.partner.gateway.channel", inverse_name="partner_id"
     )
 
-    def mail_partner_format(self, fields=None):
+    def mail_partner_format(self):
         """Override to add gateway info."""
-        partners_format = super().mail_partner_format(fields=fields)
-        if not fields:
-            fields = {"gateway_channel_ids": True}
+        partners_format = super().mail_partner_format()
         for partner in self:
-            if "gateway_channel_ids" in fields:
-                partners_format.get(partner).update(
-                    {
-                        "gateway_channels": partner.gateway_channel_ids.mail_format(),
-                    }
-                )
+            partners_format.get(partner).update(
+                {
+                    "gateway_channels": partner.gateway_channel_ids.mail_format(),
+                }
+            )
         return partners_format
 
     def _get_channels_as_member(self):
