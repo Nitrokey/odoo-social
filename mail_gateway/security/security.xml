@@ -15,9 +15,7 @@
         <field name="name">Mail.channel: access gateway</field>
         <field name="model_id" ref="mail.model_mail_channel" />
         <field name="groups" eval="[(4, ref('mail_gateway.gateway_user'))]" />
-        <field
-            name="domain_force"
-        >[('channel_type', '=', 'gateway'), '|', ('company_id', '=', False), ('company_id', 'in', company_ids) ]</field>
+        <field name="domain_force">[('channel_type', '=', 'gateway')]</field>
         <field name="perm_read" eval="True" />
         <field name="perm_create" eval="False" />
         <field name="perm_write" eval="True" />
