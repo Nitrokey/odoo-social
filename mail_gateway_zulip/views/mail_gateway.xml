@@ -3,7 +3,7 @@
     <record id="view_mail_gateway_form_zulip" model="ir.ui.view">
         <field name="name">mail.gateway.form.zulip</field>
         <field name="model">mail.gateway</field>
-        <field name="inherit_id" ref="mail_gateway.view_mail_gateway_form"/>
+        <field name="inherit_id" ref="mail_gateway.mail_gateway_form_view"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='gateway_type']" position="after">
                 <field name="zulip_server_url" attrs="{'invisible': [('gateway_type', '!=', 'zulip')], 'required': [('gateway_type', '=', 'zulip')]}"/>
@@ -18,9 +18,10 @@
     <record id="view_mail_gateway_tree_zulip" model="ir.ui.view">
         <field name="name">mail.gateway.tree.zulip</field>
         <field name="model">mail.gateway</field>
-        <field name="inherit_id" ref="mail_gateway.view_mail_gateway_tree"/>
+        <field name="inherit_id" ref="mail_gateway.mail_gateway_tree_view"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='gateway_type']" position="after">
+            <xpath expr="//field[@name='token']" position="after">
+                <field name="gateway_type" optional="show"/>
                 <field name="zulip_server_url" optional="hide"/>
                 <field name="zulip_bot_email" optional="hide"/>
             </xpath>
