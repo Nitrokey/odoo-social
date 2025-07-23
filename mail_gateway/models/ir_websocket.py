@@ -3,7 +3,11 @@
 from odoo import models
 from odoo.http import request
 
-from odoo.addons.bus.websocket import wsrequest
+try:
+    from odoo.addons.bus.models.bus import wsrequest
+except ImportError:
+    # Fallback for different Odoo versions or when websocket is not available
+    wsrequest = None
 
 
 class IrWebsocket(models.AbstractModel):
@@ -12,7 +16,7 @@ class IrWebsocket(models.AbstractModel):
     def _build_bus_channel_list(self, channels):
         req = request or wsrequest
         result = super()._build_bus_channel_list(channels)
-        if req.session.uid:
+        if req and hasattr(req, 'session') and req.session.uid:
             if req.env.user.has_group("mail_gateway.gateway_user"):
                 for channel in req.env["mail.channel"].search(
                     [("channel_type", "=", "gateway")]

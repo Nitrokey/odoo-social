@@ -9,7 +9,7 @@
     "license": "AGPL-3",
     "author": "Creu Blanca,Dixmit,Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/social",
-    "depends": ["mail"],
+    "depends": ["mail", "bus"],
     "pre_init_hook": "pre_init_hook",
     "data": [
         "wizards/mail_compose_gateway_message.xml",
