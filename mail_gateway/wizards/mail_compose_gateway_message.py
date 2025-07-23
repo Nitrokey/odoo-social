@@ -20,6 +20,7 @@ class MailComposeGatewayMessage(models.TransientModel):
         "mail_compose_gateway_message_gateway_channel_rel",
         "wizard_id",
         "channel_id",
+        domain=lambda self: self._get_wizard_channel_ids_domain(),
     )
     attachment_ids = fields.Many2many(
         "ir.attachment",
@@ -60,6 +61,16 @@ class MailComposeGatewayMessage(models.TransientModel):
         column2="partner_id",
         string="Bcc",
     )
+
+    def _get_wizard_channel_ids_domain(self):
+        """Domain for wizard_channel_ids field"""
+        if self.wizard_partner_ids:
+            return [('partner_id', 'in', self.wizard_partner_ids.ids)]
+        return []
+
+    def _partner_ids_domain(self):
+        """Domain for partner_ids field"""
+        return []
 
     def get_mail_values(self, res_ids):
         self.ensure_one()
