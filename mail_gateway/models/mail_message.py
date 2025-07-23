@@ -20,7 +20,7 @@ class MailMessage(models.Model):
     gateway_channel_ids = fields.Many2many(
         "res.partner.gateway.channel", compute="_compute_gateway_channel_ids"
     )
-    gateway_channel_data = fields.Json(compute="_compute_gateway_channel_ids")
+    gateway_channel_data = fields.Serialized(compute="_compute_gateway_channel_ids")
     gateway_message_ids = fields.One2many(
         "mail.message",
         inverse_name="gateway_message_id",
@@ -29,7 +29,7 @@ class MailMessage(models.Model):
     gateway_message_id = fields.Many2one(
         "mail.message", string="Original gateway message"
     )
-    gateway_thread_data = fields.Json(compute="_compute_gateway_thread_data")
+    gateway_thread_data = fields.Serialized(compute="_compute_gateway_thread_data")
 
     @api.depends("gateway_message_id")
     def _compute_gateway_thread_data(self):
