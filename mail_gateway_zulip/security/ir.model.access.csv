@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_mail_gateway_zulip_test_wizard,access_mail_gateway_zulip_test_wizard,model_mail_gateway_zulip_test_wizard,base.group_user,1,1,1,1
+access_zulip_channel_mapping,zulip.channel.mapping,model_zulip_channel_mapping,base.group_user,1,1,1,1

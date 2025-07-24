@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_mail_gateway_form_zulip" model="ir.ui.view">
+        <field name="name">mail.gateway.form.zulip</field>
+        <field name="model">mail.gateway</field>
+        <field name="inherit_id" ref="mail_gateway.mail_gateway_form_view" />
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='gateway_type']" position="after">
+                <!-- Basic Configuration -->
+                <field
+                    name="zulip_server_url"
+                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')], 'required': [('gateway_type', '=', 'zulip')]}"
+                />
+                <field
+                    name="zulip_bot_email"
+                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')], 'required': [('gateway_type', '=', 'zulip')]}"
+                />
+                <field
+                    name="zulip_api_key"
+                    password="True"
+                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')], 'required': [('gateway_type', '=', 'zulip')]}"
+                />
+
+                <!-- Message Filtering -->
+                <field
+                    name="zulip_stream_filter"
+                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
+                />
+                <field
+                    name="zulip_topic_filter"
+                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
+                />
+
+                <!-- Events API Configuration -->
+                <field
+                    name="zulip_auto_sync"
+                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
+                />
+                <field
+                    name="zulip_queue_id"
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_auto_sync', '=', False)]}"
+                />
+                <field
+                    name="zulip_last_event_id"
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_auto_sync', '=', False)]}"
+                />
+                <field
+                    name="zulip_listener_active"
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_auto_sync', '=', False)]}"
+                />
+
+                <!-- Webhook Configuration (Optional) -->
+                <field
+                    name="zulip_webhook_enabled"
+                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
+                />
+
+                <!-- User Mapping Configuration (controlled by webhook checkbox) -->
+                <field
+                    name="zulip_auto_map_users"
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}"
+                />
+                <field
+                    name="zulip_auto_map_domain"
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), '|', ('zulip_webhook_enabled', '=', False), ('zulip_auto_map_users', '=', False)]}"
+                    placeholder="e.g., mycompany.com"
+                />
+                <field
+                    name="zulip_create_guests"
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}"
+                />
+                <field
+                    name="zulip_guest_name_format"
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), '|', ('zulip_webhook_enabled', '=', False), ('zulip_create_guests', '=', False)]}"
+                />
+            </xpath>
+
+            <!-- Hide original webhook fields and replace them with properly ordered ones -->
+            <xpath expr="//field[@name='webhook_key']" position="attributes">
+                <attribute name="attrs">{'invisible': [('gateway_type', '=', 'zulip')]}</attribute>
+            </xpath>
+            <xpath expr="//field[@name='webhook_secret']" position="attributes">
+                <attribute name="attrs">{'invisible': [('gateway_type', '=', 'zulip')]}</attribute>
+            </xpath>
+            <xpath expr="//field[@name='webhook_url']" position="attributes">
+                <attribute name="attrs">{'invisible': [('gateway_type', '=', 'zulip')]}</attribute>
+            </xpath>
+            <xpath expr="//field[@name='integrated_webhook_state']" position="attributes">
+                <attribute name="attrs">{'invisible': [('gateway_type', '=', 'zulip')]}</attribute>
+            </xpath>
+
+            <!-- Insert webhook fields immediately after zulip_webhook_enabled -->
+            <xpath expr="//field[@name='zulip_webhook_enabled']" position="after">
+                <field 
+                    name="webhook_key" 
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)], 'required': [('gateway_type', '=', 'zulip'), ('zulip_webhook_enabled', '=', True)]}" 
+                />
+                <field
+                    name="webhook_secret"
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}"
+                />
+                <field
+                    name="webhook_url"
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), '|', ('zulip_webhook_enabled', '=', False), ('webhook_key', '=', False)]}"
+                />
+                <field
+                    name="integrated_webhook_state"
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}"
+                />
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button
+                    name="action_test_zulip_connection"
+                    string="Test Connection"
+                    type="object"
+                    class="btn-secondary"
+                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
+                    help="Test the connection to Zulip and verify configuration"
+                />
+            </xpath>
+            
+            
+            <!-- Override webhook buttons to make them conditional -->
+            <xpath expr="//button[@name='set_webhook']" position="attributes">
+                <attribute name="attrs">{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}</attribute>
+            </xpath>
+            <xpath expr="//button[@name='update_webhook']" position="attributes">
+                <attribute name="attrs">{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}</attribute>
+            </xpath>
+            <xpath expr="//button[@name='remove_webhook']" position="attributes">
+                <attribute name="attrs">{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_mail_gateway_tree_zulip" model="ir.ui.view">
+        <field name="name">mail.gateway.tree.zulip</field>
+        <field name="model">mail.gateway</field>
+        <field name="inherit_id" ref="mail_gateway.mail_gateway_tree_view" />
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='token']" position="after">
+                <field name="gateway_type" optional="show" />
+                <field name="zulip_server_url" optional="hide" />
+                <field name="zulip_bot_email" optional="hide" />
+            </xpath>
+        </field>
+    </record>
+</odoo>

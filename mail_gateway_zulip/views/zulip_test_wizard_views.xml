@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_zulip_test_wizard_form" model="ir.ui.view">
+        <field name="name">zulip.test.wizard.form</field>
+        <field name="model">mail.gateway.zulip.test.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Zulip Connection Test Results">
+                <sheet>
+                    <group>
+                        <field name="connection_successful" invisible="1" />
+                        <div
+                            class="alert alert-success"
+                            attrs="{'invisible': [('connection_successful', '=', False)]}"
+                            role="alert"
+                        >
+                            <strong>✅ Connection Test Successful!</strong>
+                            <p
+                            >Your Zulip gateway is properly configured and ready to receive messages.</p>
+                        </div>
+                        <div
+                            class="alert alert-danger"
+                            attrs="{'invisible': [('connection_successful', '=', True)]}"
+                            role="alert"
+                        >
+                            <strong>❌ Connection Test Failed</strong>
+                            <p
+                            >There are issues with your Zulip gateway configuration. Please review the details below.</p>
+                        </div>
+                    </group>
+
+                    <group>
+                        <field
+                            name="test_results"
+                            widget="text"
+                            nolabel="1"
+                            options="{'style': 'font-family: monospace; white-space: pre-wrap; background-color: #f8f9fa; padding: 10px; border: 1px solid #dee2e6; border-radius: 4px;'}"
+                        />
+                    </group>
+                </sheet>
+                <footer>
+                    <button
+                        name="action_close"
+                        string="Close"
+                        type="object"
+                        class="btn-primary"
+                    />
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
