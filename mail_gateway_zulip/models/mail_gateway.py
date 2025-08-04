@@ -2,6 +2,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 import logging
+
 from odoo import _, fields, models
 from odoo.exceptions import UserError
 
@@ -113,6 +114,14 @@ class MailGateway(models.Model):
         string="Guest Name Format",
         help="How to format names for created guest users",
     )
+    zulip_async_send = fields.Boolean(
+        string="Send Messages Asynchronously",
+        default=True,
+        help="Send messages to Zulip via cron job instead of immediately. "
+        "This prevents blocking operations and improves performance for "
+        "high-volume messaging. Messages will be queued and sent within "
+        "1-2 minutes by the background cron job.",
+    )
 
     def _get_zulip_streams(self):
         """Get list of streams to monitor based on filter"""
@@ -158,31 +167,36 @@ class MailGateway(models.Model):
                 if gateway.gateway_type == "zulip":
                     try:
                         if vals["zulip_auto_sync"]:
-                            _logger.info("Starting auto-sync for gateway %s", gateway.name)
+                            _logger.info(
+                                "Starting auto-sync for gateway %s", gateway.name
+                            )
                             zulip_service.start_auto_sync(gateway)
                             # Verify the listener actually started
                             if not gateway.zulip_listener_active:
                                 _logger.warning(
                                     "Auto-sync enabled but listener not active for gateway %s. "
-                                    "Check connection and API credentials.", 
-                                    gateway.name
+                                    "Check connection and API credentials.",
+                                    gateway.name,
                                 )
                             else:
-                                _logger.info("Event listener successfully activated for gateway %s", gateway.name)
+                                _logger.info(
+                                    "Event listener successfully activated for gateway %s",
+                                    gateway.name,
+                                )
                         else:
-                            _logger.info("Stopping auto-sync for gateway %s", gateway.name)
+                            _logger.info(
+                                "Stopping auto-sync for gateway %s", gateway.name
+                            )
                             zulip_service.stop_auto_sync(gateway)
                     except Exception as e:
                         _logger.error(
                             "Failed to %s auto-sync for gateway %s: %s",
                             "start" if vals["zulip_auto_sync"] else "stop",
                             gateway.name,
-                            str(e)
+                            str(e),
                         )
 
         return result
-
-
 
     def action_test_zulip_connection(self):
         """Test Zulip connection and show results in a wizard"""
@@ -229,9 +243,15 @@ class MailGateway(models.Model):
             test_results.append("Next Steps:")
             if connection_success:
                 test_results.append("1. Send a test message in Zulip")
-                test_results.append("2. Check if message appears in Odoo within 1-2 minutes")
-                test_results.append("3. If no message appears, check bot stream subscriptions")
-                test_results.append("4. Verify stream/topic filters are not too restrictive")
+                test_results.append(
+                    "2. Check if message appears in Odoo within 1-2 minutes"
+                )
+                test_results.append(
+                    "3. If no message appears, check bot stream subscriptions"
+                )
+                test_results.append(
+                    "4. Verify stream/topic filters are not too restrictive"
+                )
             else:
                 test_results.append("1. Fix connection issues shown above")
                 test_results.append("2. Run the test again to verify fixes")

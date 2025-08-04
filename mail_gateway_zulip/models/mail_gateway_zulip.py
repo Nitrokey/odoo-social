@@ -181,9 +181,13 @@ class MailGatewayZulipService(models.AbstractModel):
             mapping = self.env["zulip.channel.mapping"].find_mapping_for_message(
                 gateway, stream_name, topic_name
             )
-            
+
             if mapping:
-                _logger.info("Found channel mapping: %s -> %s", mapping.name, mapping.odoo_channel_id.name)
+                _logger.info(
+                    "Found channel mapping: %s -> %s",
+                    mapping.name,
+                    mapping.odoo_channel_id.name,
+                )
                 chat = mapping.odoo_channel_id
                 # Update mapping stats
                 mapping.update_sync_stats()
@@ -193,7 +197,7 @@ class MailGatewayZulipService(models.AbstractModel):
                 channel_token = self._get_channel_token(stream_name, topic_name)
                 _logger.info("Channel token: %s", channel_token)
                 chat = self._get_channel(gateway, channel_token, update)
-                
+
             _logger.info("Using channel: %s", chat.name if chat else "NOT FOUND")
             if not chat:
                 return
@@ -251,14 +255,19 @@ class MailGatewayZulipService(models.AbstractModel):
             return super()._get_author(gateway, {})
 
         # 1. FIRST: Check for manual Gateway Partner Channel mapping
-        partner_channel = self.env["res.partner.gateway.channel"].search([
-            ("gateway_id", "=", gateway.id),
-            ("gateway_token", "=", email),
-        ], limit=1)
+        partner_channel = self.env["res.partner.gateway.channel"].search(
+            [
+                ("gateway_id", "=", gateway.id),
+                ("gateway_token", "=", email),
+            ],
+            limit=1,
+        )
         if partner_channel:
             _logger.info(
                 "Found manual user mapping: %s (%s) -> %s",
-                email, full_name, partner_channel.partner_id.name
+                email,
+                full_name,
+                partner_channel.partner_id.name,
             )
             return partner_channel.partner_id
 
@@ -303,7 +312,9 @@ class MailGatewayZulipService(models.AbstractModel):
     def _try_auto_map_user(self, email):
         """Try to map by email to existing user/partner"""
         # Try user first
-        user = self.env["res.users"].search([("email", "=", email), ("active", "=", True)], limit=1)
+        user = self.env["res.users"].search(
+            [("email", "=", email), ("active", "=", True)], limit=1
+        )
         if user:
             return user.partner_id
 
@@ -336,35 +347,44 @@ class MailGatewayZulipService(models.AbstractModel):
         """Create Gateway Partner Channel mapping for successful auto-mapping"""
         try:
             # Check if mapping already exists
-            existing = self.env["res.partner.gateway.channel"].search([
-                ("gateway_id", "=", gateway.id),
-                ("gateway_token", "=", email),
-            ], limit=1)
-            
+            existing = self.env["res.partner.gateway.channel"].search(
+                [
+                    ("gateway_id", "=", gateway.id),
+                    ("gateway_token", "=", email),
+                ],
+                limit=1,
+            )
+
             if existing:
                 _logger.debug(
                     "Gateway Partner Channel mapping already exists: %s -> %s",
-                    email, existing.partner_id.name
+                    email,
+                    existing.partner_id.name,
                 )
                 return existing
-            
+
             # Create new mapping
-            mapping = self.env["res.partner.gateway.channel"].create({
-                "partner_id": partner.id,
-                "gateway_id": gateway.id,
-                "gateway_token": email,
-            })
-            
+            mapping = self.env["res.partner.gateway.channel"].create(
+                {
+                    "partner_id": partner.id,
+                    "gateway_id": gateway.id,
+                    "gateway_token": email,
+                }
+            )
+
             _logger.info(
                 "Created Gateway Partner Channel mapping: %s (%s) -> %s",
-                email, partner.name, gateway.name
+                email,
+                partner.name,
+                gateway.name,
             )
             return mapping
-            
+
         except Exception as e:
             _logger.warning(
                 "Failed to create Gateway Partner Channel mapping for %s: %s",
-                email, str(e)
+                email,
+                str(e),
             )
             return None
 
@@ -377,6 +397,42 @@ class MailGatewayZulipService(models.AbstractModel):
         parse_mode=False,
     ):
         """Send message to Zulip"""
+        # Check if async sending is enabled
+        if gateway.zulip_async_send:
+            _logger.debug("=== QUEUING MESSAGE FOR ASYNC SENDING ===")
+            _logger.debug("Gateway: %s", gateway.name)
+            _logger.debug("Record ID: %s", record.id)
+
+            # Mark message as ready for sending by cron job
+            record.sudo().write(
+                {
+                    "notification_status": "ready",
+                    "failure_reason": False,
+                    "failure_type": False,
+                }
+            )
+
+            _logger.info(
+                "Message queued for async sending: Gateway %s, Record %s",
+                gateway.name,
+                record.id,
+            )
+            return
+
+        # Original synchronous sending logic
+        self._send_message_now(
+            gateway, record, auto_commit, raise_exception, parse_mode
+        )
+
+    def _send_message_now(
+        self,
+        gateway,
+        record,
+        auto_commit=False,
+        raise_exception=False,
+        parse_mode=False,
+    ):
+        """Send message to Zulip immediately (synchronous)"""
         try:
             _logger.debug("=== SENDING MESSAGE TO ZULIP ===")
             _logger.debug("Gateway: %s", gateway.name)
@@ -758,11 +814,11 @@ class MailGatewayZulipService(models.AbstractModel):
 
     @api.model
     def _cron_poll_events(self):
-        """Cron job to poll events for all active Zulip gateways"""
+        """Cron job to poll events AND send pending messages for all active Zulip gateways"""
         _logger.debug("=== ZULIP CRON JOB STARTED ===")
 
         # Search for gateways with Events API enabled (independent of webhook state)
-        gateways = self.env["mail.gateway"].search(
+        event_gateways = self.env["mail.gateway"].search(
             [
                 ("gateway_type", "=", "zulip"),
                 ("zulip_auto_sync", "=", True),
@@ -770,19 +826,125 @@ class MailGatewayZulipService(models.AbstractModel):
             ]
         )
 
-        _logger.debug("Found %d active Zulip gateways for polling", len(gateways))
-        for gateway in gateways:
-            _logger.debug("Processing gateway: %s (ID: %s)", gateway.name, gateway.id)
+        # Search for gateways with async sending enabled
+        async_gateways = self.env["mail.gateway"].search(
+            [
+                ("gateway_type", "=", "zulip"),
+                ("zulip_async_send", "=", True),
+            ]
+        )
 
-        for gateway in gateways:
+        # Combine both sets of gateways (remove duplicates)
+        all_gateways = event_gateways | async_gateways
+
+        _logger.debug("Found %d gateways for event polling", len(event_gateways))
+        _logger.debug("Found %d gateways for async sending", len(async_gateways))
+        _logger.debug("Processing %d total gateways", len(all_gateways))
+
+        for gateway in all_gateways:
             try:
-                self._poll_gateway_events(gateway)
+                # Handle incoming events (if auto-sync is enabled)
+                if gateway in event_gateways:
+                    self._poll_gateway_events(gateway)
+
+                # Handle outgoing messages (if async sending is enabled)
+                if gateway in async_gateways:
+                    self._send_pending_messages(gateway)
+
             except Exception as e:
                 _logger.error(
-                    "Error polling events for gateway %s: %s", gateway.name, str(e)
+                    "Error in cron job for gateway %s: %s", gateway.name, str(e)
                 )
 
         _logger.debug("=== ZULIP CRON JOB COMPLETED ===")
+
+    def _send_pending_messages(self, gateway):
+        """Send all pending messages for a specific gateway"""
+        try:
+            _logger.debug(
+                "=== SENDING PENDING MESSAGES FOR GATEWAY %s ===", gateway.name
+            )
+
+            # Find all pending notifications for this gateway
+            pending_notifications = self.env["mail.notification"].search(
+                [
+                    ("notification_type", "=", "inbox"),
+                    ("gateway_channel_id.gateway_id", "=", gateway.id),
+                    ("notification_status", "=", "ready"),
+                ]
+            )
+
+            if not pending_notifications:
+                _logger.debug("No pending messages for gateway %s", gateway.name)
+                return
+
+            _logger.info(
+                "Found %d pending messages for gateway %s",
+                len(pending_notifications),
+                gateway.name,
+            )
+
+            sent_count = 0
+            failed_count = 0
+
+            for notification in pending_notifications:
+                try:
+                    _logger.debug(
+                        "Sending pending notification ID: %s", notification.id
+                    )
+
+                    # Send the message using the existing synchronous method
+                    self._send_message_now(
+                        gateway, notification, auto_commit=False, raise_exception=False
+                    )
+
+                    # Check if it was sent successfully
+                    if notification.notification_status == "sent":
+                        sent_count += 1
+                        _logger.debug(
+                            "Successfully sent notification ID: %s", notification.id
+                        )
+                    else:
+                        failed_count += 1
+                        _logger.warning(
+                            "Failed to send notification ID: %s, status: %s",
+                            notification.id,
+                            notification.notification_status,
+                        )
+
+                except Exception as e:
+                    failed_count += 1
+                    _logger.error(
+                        "Exception sending notification ID %s: %s",
+                        notification.id,
+                        str(e),
+                    )
+
+                    # Mark as failed if not already marked
+                    if notification.notification_status == "ready":
+                        notification.sudo().write(
+                            {
+                                "notification_status": "exception",
+                                "failure_reason": str(e),
+                                "failure_type": "unknown",
+                            }
+                        )
+
+            if sent_count > 0 or failed_count > 0:
+                _logger.info(
+                    "Pending messages for gateway %s: %d sent, %d failed",
+                    gateway.name,
+                    sent_count,
+                    failed_count,
+                )
+
+        except Exception as e:
+            _logger.error(
+                "Error processing pending messages for gateway %s: %s",
+                gateway.name,
+                str(e),
+            )
+            _logger.error("Full traceback: %s", traceback.format_exc())
 
     def _poll_gateway_events(self, gateway):
         """Poll events for a specific gateway"""

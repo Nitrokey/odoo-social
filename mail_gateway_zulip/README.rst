@@ -80,6 +80,7 @@ Odoo Setup
    * **Stream Filter**: Comma-separated list of streams to monitor (leave empty for all)
    * **Topic Filter**: Comma-separated list of topics to monitor (leave empty for all)
    * **Auto-sync Messages**: Enable for automatic real-time synchronization
+   * **Send Messages Asynchronously**: Enable non-blocking message sending (enabled by default)
 
 4. Add team members to the gateway to give them access to Zulip channels
 
@@ -131,6 +132,7 @@ Message Synchronization
 
 * **From Zulip to Odoo**: Messages posted in monitored Zulip streams/topics appear in corresponding Odoo channels
 * **From Odoo to Zulip**: Messages posted in Zulip gateway channels are sent to the corresponding Zulip stream/topic
+* **Asynchronous sending**: Non-blocking message delivery via cron job (enabled by default) for improved performance
 * Message editing is synchronized in both directions
 * Simple text formatting is preserved
 
