@@ -39,7 +39,10 @@ class TestZulipCronEvents(TransactionCase):
             }
         )
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._poll_gateway_events") as mock_poll:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._poll_gateway_events"
+        ) as mock_poll:
             self.zulip_service._cron_poll_events()
 
             # Should poll active gateways (there might be more than one)
@@ -84,7 +87,10 @@ class TestZulipCronEvents(TransactionCase):
             ],
         }
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._process_event") as mock_process:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._process_event"
+        ) as mock_process:
             self.zulip_service._poll_gateway_events(self.gateway)
 
             # Verify API call
@@ -96,8 +102,12 @@ class TestZulipCronEvents(TransactionCase):
 
             # Verify events were processed
             self.assertEqual(mock_process.call_count, 2)
-            mock_process.assert_any_call(self.gateway, mock_client.get_events.return_value["events"][0])
-            mock_process.assert_any_call(self.gateway, mock_client.get_events.return_value["events"][1])
+            mock_process.assert_any_call(
+                self.gateway, mock_client.get_events.return_value["events"][0]
+            )
+            mock_process.assert_any_call(
+                self.gateway, mock_client.get_events.return_value["events"][1]
+            )
 
             # Verify last event ID was updated
             self.assertEqual(self.gateway.zulip_last_event_id, 102)
@@ -112,7 +122,10 @@ class TestZulipCronEvents(TransactionCase):
             "events": [],  # No events
         }
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._process_event") as mock_process:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._process_event"
+        ) as mock_process:
             self.zulip_service._poll_gateway_events(self.gateway)
 
             # Verify no events were processed
@@ -146,7 +159,11 @@ class TestZulipCronEvents(TransactionCase):
         mock_client = Mock()
         mock_zulip.Client.return_value = mock_client
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._register_event_queue", return_value=True) as mock_register:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._register_event_queue",
+            return_value=True,
+        ) as mock_register:
             self.zulip_service._poll_gateway_events(self.gateway)
 
             # Should attempt to register queue
@@ -161,7 +178,11 @@ class TestZulipCronEvents(TransactionCase):
         mock_client = Mock()
         mock_zulip.Client.return_value = mock_client
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._register_event_queue", return_value=False) as mock_register:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._register_event_queue",
+            return_value=False,
+        ) as mock_register:
             # Should not raise exception
             self.zulip_service._poll_gateway_events(self.gateway)
 
@@ -185,7 +206,7 @@ class TestZulipCronEvents(TransactionCase):
     def test_cron_poll_events_handles_exceptions(self):
         """Test that cron job handles individual gateway exceptions"""
         # Create second gateway
-        gateway2 = self.env["mail.gateway"].create(
+        self.env["mail.gateway"].create(
             {
                 "name": "Gateway 2",
                 "gateway_type": "zulip",
@@ -204,7 +225,11 @@ class TestZulipCronEvents(TransactionCase):
                 raise Exception("Test error")
             # Second gateway should still be processed
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._poll_gateway_events", side_effect=mock_poll_with_exception):
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._poll_gateway_events",
+            side_effect=mock_poll_with_exception,
+        ):
             # Should not raise exception
             self.zulip_service._cron_poll_events()
 
@@ -235,7 +260,10 @@ class TestZulipCronEvents(TransactionCase):
             },
         }
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._receive_update") as mock_receive:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._receive_update"
+        ) as mock_receive:
             self.zulip_service._process_event(self.gateway, event)
 
             # Should call _receive_update with proper format
@@ -272,7 +300,10 @@ class TestZulipCronEvents(TransactionCase):
             },
         }
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._receive_update") as mock_receive:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._receive_update"
+        ) as mock_receive:
             # Allowed event should be processed
             self.zulip_service._process_event(self.gateway, allowed_event)
             mock_receive.assert_called_once()
@@ -310,7 +341,10 @@ class TestZulipCronEvents(TransactionCase):
             },
         }
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._receive_update") as mock_receive:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._receive_update"
+        ) as mock_receive:
             # Allowed event should be processed
             self.zulip_service._process_event(self.gateway, allowed_event)
             mock_receive.assert_called_once()
@@ -333,6 +367,9 @@ class TestZulipCronEvents(TransactionCase):
             },
         }
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._receive_update") as mock_receive:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService."
+            "_receive_update"
+        ) as mock_receive:
             self.zulip_service._process_event(self.gateway, event)
             mock_receive.assert_not_called()

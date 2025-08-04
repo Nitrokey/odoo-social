@@ -27,7 +27,7 @@ class TestZulipChannelMapping(TransactionCase):
                 "channel_type": "channel",
             }
         )
-        
+
         # Mock the stream selection method to return test streams
         def mock_get_streams_selection(self):
             return [
@@ -35,17 +35,17 @@ class TestZulipChannelMapping(TransactionCase):
                 ("development", "development"),
                 ("support", "support"),
             ]
-        
+
         self.stream_selection_patcher = patch.object(
             self.env["zulip.channel.mapping"].__class__,
             "_get_zulip_streams_selection",
-            mock_get_streams_selection
+            mock_get_streams_selection,
         )
         self.stream_selection_patcher.start()
-        
+
     def tearDown(self):
         super().tearDown()
-        if hasattr(self, 'stream_selection_patcher'):
+        if hasattr(self, "stream_selection_patcher"):
             self.stream_selection_patcher.stop()
 
     def test_mapping_name_computation(self):
@@ -102,7 +102,7 @@ class TestZulipChannelMapping(TransactionCase):
         mock_zulip.Client.return_value = mock_client
 
         # Create mapping
-        mapping = self.env["zulip.channel.mapping"].create(
+        self.env["zulip.channel.mapping"].create(
             {
                 "gateway_id": self.gateway.id,
                 "zulip_stream": "general",
@@ -154,7 +154,7 @@ class TestZulipChannelMapping(TransactionCase):
     def test_find_mapping_for_message_priority(self):
         """Test that exact matches have priority over stream-only matches"""
         # Create stream-only mapping
-        stream_mapping = self.env["zulip.channel.mapping"].create(
+        self.env["zulip.channel.mapping"].create(
             {
                 "gateway_id": self.gateway.id,
                 "zulip_stream": "general",
@@ -186,6 +186,13 @@ class TestZulipChannelMapping(TransactionCase):
         self.assertEqual(found, exact_mapping)
 
         # Test fallback to stream-only
+        stream_mapping = self.env["zulip.channel.mapping"].search(
+            [
+                ("gateway_id", "=", self.gateway.id),
+                ("zulip_stream", "=", "general"),
+                ("zulip_topic", "=", False),
+            ]
+        )
         found = self.env["zulip.channel.mapping"].find_mapping_for_message(
             self.gateway, "general", "other_topic"
         )
@@ -326,7 +333,7 @@ class TestZulipChannelMapping(TransactionCase):
 
         # Create mapping (triggers channel configuration)
         with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.zulip"):
-            mapping = self.env["zulip.channel.mapping"].create(
+            self.env["zulip.channel.mapping"].create(
                 {
                     "gateway_id": self.gateway.id,
                     "zulip_stream": "general",
@@ -342,7 +349,7 @@ class TestZulipChannelMapping(TransactionCase):
     def test_inactive_mapping_ignored(self):
         """Test that inactive mappings are ignored in searches"""
         # Create inactive mapping
-        mapping = self.env["zulip.channel.mapping"].create(
+        self.env["zulip.channel.mapping"].create(
             {
                 "gateway_id": self.gateway.id,
                 "zulip_stream": "general",

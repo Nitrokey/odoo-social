@@ -55,9 +55,12 @@ class TestZulipMessageProcessing(TransactionCase):
         }
 
         # Process update
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._process_zulip_message") as mock_process:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._process_zulip_message"
+        ) as mock_process:
             mock_process.return_value = Mock()
-            result = self.zulip_service._receive_update(self.gateway, update)
+            self.zulip_service._receive_update(self.gateway, update)
 
             # Verify mapping was used
             mock_process.assert_called_once()
@@ -84,12 +87,18 @@ class TestZulipMessageProcessing(TransactionCase):
         }
 
         # Mock channel creation
-        with patch("odoo.addons.mail_gateway.models.mail_gateway_abstract.MailGatewayAbstract._get_channel") as mock_get_channel, patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._process_zulip_message") as mock_process:
+        with patch(
+            "odoo.addons.mail_gateway.models.mail_gateway_abstract."
+            "MailGatewayAbstract._get_channel"
+        ) as mock_get_channel, patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._process_zulip_message"
+        ) as mock_process:
             mock_channel = Mock()
             mock_get_channel.return_value = mock_channel
             mock_process.return_value = Mock()
 
-            result = self.zulip_service._receive_update(self.gateway, update)
+            self.zulip_service._receive_update(self.gateway, update)
 
             # Verify auto-creation was used
             mock_get_channel.assert_called_once_with(
@@ -145,7 +154,11 @@ class TestZulipMessageProcessing(TransactionCase):
         )
 
         # Process message
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._get_author_from_email", return_value=partner):
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._get_author_from_email",
+            return_value=partner,
+        ):
             message = self.zulip_service._process_zulip_message(
                 self.channel,
                 "Hello from Zulip!",
@@ -281,13 +294,19 @@ class TestZulipMessageProcessing(TransactionCase):
         }
 
         # Mock the receive_update method
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._receive_update") as mock_receive:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._receive_update"
+        ) as mock_receive:
             self.zulip_service._process_event(self.gateway, event)
             mock_receive.assert_called_once()
 
         # Test filtered out stream
         event["message"]["display_recipient"] = "random"
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._receive_update") as mock_receive:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._receive_update"
+        ) as mock_receive:
             self.zulip_service._process_event(self.gateway, event)
             mock_receive.assert_not_called()
 
@@ -304,7 +323,10 @@ class TestZulipMessageProcessing(TransactionCase):
             },
         }
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._receive_update") as mock_receive:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._receive_update"
+        ) as mock_receive:
             self.zulip_service._process_event(self.gateway, event)
             mock_receive.assert_not_called()
 
@@ -315,13 +337,19 @@ class TestZulipMessageProcessing(TransactionCase):
             "data": {"some": "data"},
         }
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService._receive_update") as mock_receive:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._receive_update"
+        ) as mock_receive:
             self.zulip_service._process_event(self.gateway, event)
             mock_receive.assert_not_called()
 
     @patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.zulip")
     def test_send_message_to_zulip(self, mock_zulip):
         """Test sending message from Odoo to Zulip"""
+        # Disable async sending for this test to test immediate sending
+        self.gateway.zulip_async_send = False
+
         # Mock Zulip client
         mock_client = Mock()
         mock_zulip.Client.return_value = mock_client
@@ -340,11 +368,13 @@ class TestZulipMessageProcessing(TransactionCase):
         )
 
         # Create a partner to associate with the notification
-        partner = self.env["res.partner"].create({
-            "name": "Test Partner",
-            "email": "test@example.com",
-        })
-        
+        partner = self.env["res.partner"].create(
+            {
+                "name": "Test Partner",
+                "email": "test@example.com",
+            }
+        )
+
         notification = self.env["mail.notification"].create(
             {
                 "mail_message_id": message.id,
@@ -353,7 +383,7 @@ class TestZulipMessageProcessing(TransactionCase):
                 "notification_status": "ready",
             }
         )
-        
+
         # Set the gateway channel manually since it's not a standard field
         notification.gateway_channel_id = self.channel.id
 
@@ -378,8 +408,11 @@ class TestZulipMessageProcessing(TransactionCase):
         html = self.zulip_service._markdown_to_html("**bold** text")
         self.assertEqual(html, "<p>**bold** text</p>")
 
-        # Test HTML to markdown - the implementation uses html2plaintext which converts <strong> to *text*
-        markdown = self.zulip_service._html_to_markdown("<p><strong>bold</strong> text</p>")
+        # Test HTML to markdown - the implementation uses html2plaintext
+        # which converts <strong> to *text*
+        markdown = self.zulip_service._html_to_markdown(
+            "<p><strong>bold</strong> text</p>"
+        )
         self.assertEqual(markdown, "*bold* text")
 
         # Test empty content

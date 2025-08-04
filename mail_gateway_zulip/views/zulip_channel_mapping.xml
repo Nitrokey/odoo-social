@@ -5,19 +5,20 @@
         <field name="name">zulip.channel.mapping.tree</field>
         <field name="model">zulip.channel.mapping</field>
         <field name="arch" type="xml">
-            <tree string="Zulip Channel Mappings" 
-                  decoration-success="status=='active'" 
-                  decoration-danger="status=='error'" 
-                  decoration-muted="not active">
-                <field name="name"/>
-                <field name="gateway_id"/>
-                <field name="zulip_stream"/>
-                <field name="zulip_topic"/>
-                <field name="odoo_channel_id"/>
-                <field name="status"/>
-                <field name="active"/>
-                <field name="last_sync"/>
-                <field name="message_count"/>
+            <tree
+                decoration-success="status=='active'"
+                decoration-danger="status=='error'"
+                decoration-muted="not active"
+            >
+                <field name="name" />
+                <field name="gateway_id" />
+                <field name="zulip_stream" />
+                <field name="zulip_topic" />
+                <field name="odoo_channel_id" />
+                <field name="status" />
+                <field name="active" />
+                <field name="last_sync" />
+                <field name="message_count" />
             </tree>
         </field>
     </record>
@@ -29,38 +30,47 @@
         <field name="arch" type="xml">
             <form string="Zulip Channel Mapping">
                 <header>
-                    <button name="action_test_mapping" 
-                            string="Test Mapping" 
-                            type="object" 
-                            class="btn-secondary"
-                            help="Test both Zulip connectivity and bidirectional sync configuration"/>
-                    <button name="action_sync_now" 
-                            string="Sync Now" 
-                            type="object" 
-                            class="btn-secondary"/>
-                    <field name="status" widget="statusbar"/>
+                    <button
+                        name="action_test_mapping"
+                        string="Test Mapping"
+                        type="object"
+                        class="btn-secondary"
+                        help="Test both Zulip connectivity and bidirectional sync configuration"
+                    />
+                    <button
+                        name="action_sync_now"
+                        string="Sync Now"
+                        type="object"
+                        class="btn-secondary"
+                    />
+                    <field name="status" widget="statusbar" />
                 </header>
                 <sheet>
                     <group>
                         <group string="Basic Configuration">
-                            <field name="name"/>
-                            <field name="gateway_id"/>
-                            <field name="active"/>
+                            <field name="name" />
+                            <field name="gateway_id" />
+                            <field name="active" />
                         </group>
                         <group string="Zulip Channel">
-                            <field name="zulip_stream"/>
-                            <field name="zulip_topic" placeholder="Leave empty for all topics"/>
+                            <field name="zulip_stream" />
+                            <field
+                                name="zulip_topic"
+                                placeholder="Leave empty for all topics"
+                            />
                         </group>
                     </group>
                     <group>
                         <group string="Odoo Channel">
-                            <field name="odoo_channel_id"/>
+                            <field name="odoo_channel_id" />
                         </group>
                         <group string="Status">
-                            <field name="last_sync"/>
-                            <field name="message_count"/>
-                            <field name="error_message" 
-                                   attrs="{'invisible': [('status', '!=', 'error')]}"/>
+                            <field name="last_sync" />
+                            <field name="message_count" />
+                            <field
+                                name="error_message"
+                                attrs="{'invisible': [('status', '!=', 'error')]}"
+                            />
                         </group>
                     </group>
                 </sheet>
@@ -74,22 +84,54 @@
         <field name="model">zulip.channel.mapping</field>
         <field name="arch" type="xml">
             <search string="Search Channel Mappings">
-                <field name="name"/>
-                <field name="gateway_id"/>
-                <field name="zulip_stream"/>
-                <field name="zulip_topic"/>
-                <field name="odoo_channel_id"/>
-                <filter string="Active" name="active" domain="[('active', '=', True)]"/>
-                <filter string="Inactive" name="inactive" domain="[('active', '=', False)]"/>
-                <separator/>
-                <filter string="Status: Active" name="status_active" domain="[('status', '=', 'active')]"/>
-                <filter string="Status: Error" name="status_error" domain="[('status', '=', 'error')]"/>
-                <filter string="Status: Inactive" name="status_inactive" domain="[('status', '=', 'inactive')]"/>
-                <separator/>
+                <field name="name" />
+                <field name="gateway_id" />
+                <field name="zulip_stream" />
+                <field name="zulip_topic" />
+                <field name="odoo_channel_id" />
+                <filter
+                    string="Active"
+                    name="active"
+                    domain="[('active', '=', True)]"
+                />
+                <filter
+                    string="Inactive"
+                    name="inactive"
+                    domain="[('active', '=', False)]"
+                />
+                <separator />
+                <filter
+                    string="Status: Active"
+                    name="status_active"
+                    domain="[('status', '=', 'active')]"
+                />
+                <filter
+                    string="Status: Error"
+                    name="status_error"
+                    domain="[('status', '=', 'error')]"
+                />
+                <filter
+                    string="Status: Inactive"
+                    name="status_inactive"
+                    domain="[('status', '=', 'inactive')]"
+                />
+                <separator />
                 <group expand="0" string="Group By">
-                    <filter string="Gateway" name="group_gateway" context="{'group_by': 'gateway_id'}"/>
-                    <filter string="Stream" name="group_stream" context="{'group_by': 'zulip_stream'}"/>
-                    <filter string="Status" name="group_status" context="{'group_by': 'status'}"/>
+                    <filter
+                        string="Gateway"
+                        name="group_gateway"
+                        context="{'group_by': 'gateway_id'}"
+                    />
+                    <filter
+                        string="Stream"
+                        name="group_stream"
+                        context="{'group_by': 'zulip_stream'}"
+                    />
+                    <filter
+                        string="Status"
+                        name="group_status"
+                        context="{'group_by': 'status'}"
+                    />
                 </group>
             </search>
         </field>
@@ -106,17 +148,19 @@
                 Create your first Zulip channel mapping!
             </p>
             <p>
-                Channel mappings define how Zulip streams and topics are synchronized 
-                with Odoo Discuss channels. You can map specific stream/topic combinations 
+                Channel mappings define how Zulip streams and topics are synchronized
+                with Odoo Discuss channels. You can map specific stream/topic combinations
                 or entire streams to Odoo channels.
             </p>
         </field>
     </record>
 
     <!-- Menu Item for Channel Mappings - same level as Gateway -->
-    <menuitem id="menu_zulip_channel_mappings"
-              name="Channel Mappings"
-              parent="base.menu_email"
-              action="action_zulip_channel_mapping"
-              sequence="17"/>
+    <menuitem
+        id="menu_zulip_channel_mappings"
+        name="Channel Mappings"
+        parent="base.menu_email"
+        action="action_zulip_channel_mapping"
+        sequence="17"
+    />
 </odoo>

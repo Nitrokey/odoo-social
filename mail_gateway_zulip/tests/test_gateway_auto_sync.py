@@ -27,7 +27,10 @@ class TestZulipGatewayAutoSync(TransactionCase):
 
     def test_auto_sync_activation_on_write(self):
         """Test that auto-sync starts when enabled via write()"""
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService.start_auto_sync") as mock_start:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService.start_auto_sync"
+        ) as mock_start:
             # Enable auto-sync
             self.gateway.write({"zulip_auto_sync": True})
 
@@ -39,7 +42,10 @@ class TestZulipGatewayAutoSync(TransactionCase):
         # First enable auto-sync
         self.gateway.zulip_auto_sync = True
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService.stop_auto_sync") as mock_stop:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService.stop_auto_sync"
+        ) as mock_stop:
             # Then disable it
             self.gateway.write({"zulip_auto_sync": False})
 
@@ -160,7 +166,11 @@ class TestZulipGatewayAutoSync(TransactionCase):
 
     def test_write_method_error_handling(self):
         """Test that write method handles auto-sync errors gracefully"""
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService.start_auto_sync", side_effect=Exception("Test error")):
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService.start_auto_sync",
+            side_effect=Exception("Test error"),
+        ):
             # This should not raise an exception
             self.gateway.write({"zulip_auto_sync": True})
 
@@ -178,7 +188,10 @@ class TestZulipGatewayAutoSync(TransactionCase):
             }
         )
 
-        with patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.MailGatewayZulipService.start_auto_sync") as mock_start:
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService.start_auto_sync"
+        ) as mock_start:
             # Enable auto-sync on the other Zulip gateway
             other_gateway.write({"zulip_auto_sync": True})
 
