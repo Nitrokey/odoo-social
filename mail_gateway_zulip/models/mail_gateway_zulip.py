@@ -234,17 +234,28 @@ class MailGatewayZulipService(models.AbstractModel):
             message_type="comment",
         )
 
-        # Store Zulip message ID for reference
-        if message_id:
-            notification = self.env["mail.notification"].search(
-                [
-                    ("mail_message_id", "=", new_message.id),
-                    ("gateway_channel_id", "=", chat.id),
-                ],
-                limit=1,
+        # CRITICAL: Mark all notifications for this message as already sent
+        # to prevent sending the message back to Zulip (avoid infinite loop)
+        notifications = self.env["mail.notification"].search(
+            [
+                ("mail_message_id", "=", new_message.id),
+                ("gateway_channel_id", "=", chat.id),
+            ]
+        )
+        
+        for notification in notifications:
+            # Mark as sent and store the original Zulip message ID
+            notification.sudo().write(
+                {
+                    "notification_status": "sent",
+                    "gateway_message_id": str(message_id) if message_id else "",
+                }
             )
-            if notification:
-                notification.gateway_message_id = str(message_id)
+            _logger.debug(
+                "Marked notification %s as sent to prevent loop (original Zulip message: %s)",
+                notification.id,
+                message_id,
+            )
 
         self._post_process_message(new_message, chat)
         return new_message
@@ -397,6 +408,17 @@ class MailGatewayZulipService(models.AbstractModel):
         parse_mode=False,
     ):
         """Send message to Zulip"""
+        # CRITICAL: Check if message is already sent to prevent infinite loops
+        if record.notification_status == "sent":
+            _logger.debug(
+                "Skipping message that is already sent (loop prevention): "
+                "Gateway %s, Record %s, Zulip Message ID: %s",
+                gateway.name,
+                record.id,
+                record.gateway_message_id,
+            )
+            return
+
         # Check if async sending is enabled
         if gateway.zulip_async_send:
             _logger.debug("=== QUEUING MESSAGE FOR ASYNC SENDING ===")

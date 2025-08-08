@@ -150,6 +150,15 @@ class MailGateway(models.Model):
             return base_url + "/json"
         return super()._get_webhook_url()
 
+    def _should_retry_auto_sync(self):
+        """Check if any gateway needs auto-sync retry due to inconsistent state"""
+        return any(
+            gateway.gateway_type == "zulip"
+            and gateway.zulip_auto_sync
+            and not gateway.zulip_listener_active
+            for gateway in self
+        )
+
     def write(self, vals):
         """Override to handle auto-sync and webhook changes"""
         # Handle webhook state reset when webhooks are disabled
@@ -160,29 +169,53 @@ class MailGateway(models.Model):
 
         result = super().write(vals)
 
-        # Handle auto-sync changes - process after write to ensure fields are updated
-        if "zulip_auto_sync" in vals:
+        # Handle auto-sync changes OR detect and fix inconsistent states
+        if "zulip_auto_sync" in vals or self._should_retry_auto_sync():
             zulip_service = self.env["mail.gateway.zulip"]
             for gateway in self:
                 if gateway.gateway_type == "zulip":
                     try:
-                        if vals["zulip_auto_sync"]:
-                            _logger.info(
-                                "Starting auto-sync for gateway %s", gateway.name
+                        if gateway.zulip_auto_sync:
+                            # Check if this is a retry due to inconsistent state
+                            is_retry = (
+                                "zulip_auto_sync" not in vals
+                                and gateway.zulip_auto_sync
+                                and not gateway.zulip_listener_active
                             )
-                            zulip_service.start_auto_sync(gateway)
-                            # Verify the listener actually started
-                            if not gateway.zulip_listener_active:
-                                _logger.warning(
-                                    "Auto-sync enabled but listener not active for gateway %s. "
-                                    "Check connection and API credentials.",
+
+                            if is_retry:
+                                _logger.info(
+                                    "Detected inconsistent auto-sync state for gateway %s, "
+                                    "attempting to activate event listener",
                                     gateway.name,
                                 )
                             else:
                                 _logger.info(
-                                    "Event listener successfully activated for gateway %s",
+                                    "Starting auto-sync for gateway %s", gateway.name
+                                )
+
+                            zulip_service.start_auto_sync(gateway)
+
+                            # Verify the listener actually started
+                            if not gateway.zulip_listener_active:
+                                _logger.warning(
+                                    "Auto-sync enabled for gateway %s but event listener "
+                                    "activation failed. Check connection and API credentials. "
+                                    "Try disabling and re-enabling auto-sync if the issue persists.",
                                     gateway.name,
                                 )
+                            else:
+                                if is_retry:
+                                    _logger.info(
+                                        "Successfully recovered inconsistent auto-sync state "
+                                        "for gateway %s - event listener now active",
+                                        gateway.name,
+                                    )
+                                else:
+                                    _logger.info(
+                                        "Event listener successfully activated for gateway %s",
+                                        gateway.name,
+                                    )
                         else:
                             _logger.info(
                                 "Stopping auto-sync for gateway %s", gateway.name
@@ -191,7 +224,7 @@ class MailGateway(models.Model):
                     except Exception as e:
                         _logger.error(
                             "Failed to %s auto-sync for gateway %s: %s",
-                            "start" if vals["zulip_auto_sync"] else "stop",
+                            "start" if gateway.zulip_auto_sync else "stop",
                             gateway.name,
                             str(e),
                         )
@@ -210,6 +243,7 @@ class MailGateway(models.Model):
 
         # Run tests and collect results
         test_results = []
+        connection_success = False
 
         try:
             # Connection Test
@@ -220,6 +254,39 @@ class MailGateway(models.Model):
                 test_results.append("✅ API connectivity successful")
                 test_results.append("✅ Bot authentication working")
                 test_results.append("✅ Event queue registration successful")
+                test_results.append("")
+
+                # Auto-sync Configuration Check
+                test_results.append("Auto-sync Configuration Check:")
+                
+                if self.zulip_auto_sync:
+                    if self.zulip_listener_active:
+                        test_results.append("✅ Auto-sync enabled and event listener active")
+                    else:
+                        test_results.append("⚠️  Auto-sync enabled but event listener inactive")
+                        test_results.append("   Attempting to activate event listener...")
+                        
+                        # Try to fix the inconsistent state
+                        try:
+                            zulip_service.start_auto_sync(self)
+                            if self.zulip_listener_active:
+                                test_results.append("✅ Event listener successfully activated")
+                                test_results.append("   Auto-sync state has been corrected")
+                            else:
+                                test_results.append("❌ Failed to activate event listener")
+                                test_results.append("   • Try disabling and re-enabling auto-sync")
+                                test_results.append("   • Check Odoo logs for detailed errors")
+                                test_results.append("   • Verify bot has necessary permissions")
+                        except Exception as e:
+                            test_results.append(f"❌ Error activating listener: {str(e)}")
+                            test_results.append("   • Check connection and API credentials")
+                            test_results.append("   • Review Odoo logs for full error details")
+                else:
+                    test_results.append("ℹ️  Auto-sync disabled - no event listener needed")
+                    if self.zulip_listener_active:
+                        test_results.append("   Note: Event listener is active but auto-sync is disabled")
+                        test_results.append("   This is unusual but not problematic")
+
                 test_results.append("")
 
                 # Event Polling Test
@@ -242,16 +309,25 @@ class MailGateway(models.Model):
             test_results.append("")
             test_results.append("Next Steps:")
             if connection_success:
-                test_results.append("1. Send a test message in Zulip")
-                test_results.append(
-                    "2. Check if message appears in Odoo within 1-2 minutes"
-                )
-                test_results.append(
-                    "3. If no message appears, check bot stream subscriptions"
-                )
-                test_results.append(
-                    "4. Verify stream/topic filters are not too restrictive"
-                )
+                if self.zulip_auto_sync and self.zulip_listener_active:
+                    test_results.append("1. Send a test message in Zulip")
+                    test_results.append(
+                        "2. Check if message appears in Odoo within 1-2 minutes"
+                    )
+                    test_results.append(
+                        "3. If no message appears, check bot stream subscriptions"
+                    )
+                    test_results.append(
+                        "4. Verify stream/topic filters are not too restrictive"
+                    )
+                elif self.zulip_auto_sync and not self.zulip_listener_active:
+                    test_results.append("1. Fix the event listener activation issue above")
+                    test_results.append("2. Try disabling and re-enabling auto-sync")
+                    test_results.append("3. Run this test again to verify the fix")
+                else:
+                    test_results.append("1. Enable 'Auto-sync Messages' if you want incoming messages")
+                    test_results.append("2. Configure stream/topic filters as needed")
+                    test_results.append("3. Run this test again after enabling auto-sync")
             else:
                 test_results.append("1. Fix connection issues shown above")
                 test_results.append("2. Run the test again to verify fixes")
@@ -267,9 +343,7 @@ class MailGateway(models.Model):
             {
                 "gateway_id": self.id,
                 "test_results": "\n".join(test_results),
-                "connection_successful": connection_success
-                if "connection_success" in locals()
-                else False,
+                "connection_successful": connection_success,
             }
         )
 
