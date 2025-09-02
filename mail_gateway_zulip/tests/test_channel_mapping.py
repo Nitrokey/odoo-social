@@ -43,10 +43,28 @@ class TestZulipChannelMapping(TransactionCase):
         )
         self.stream_selection_patcher.start()
 
+        # Mock Zulip client for channel configuration
+        self.zulip_patcher = patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.zulip")
+        mock_zulip = self.zulip_patcher.start()
+        mock_client = Mock()
+        mock_zulip.Client.return_value = mock_client
+        
+        # Also patch the service method directly to avoid import issues
+        self.service_patcher = patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService._get_zulip_client",
+            return_value=mock_client
+        )
+        self.service_patcher.start()
+
     def tearDown(self):
         super().tearDown()
         if hasattr(self, "stream_selection_patcher"):
             self.stream_selection_patcher.stop()
+        if hasattr(self, "zulip_patcher"):
+            self.zulip_patcher.stop()
+        if hasattr(self, "service_patcher"):
+            self.service_patcher.stop()
 
     def test_mapping_name_computation(self):
         """Test automatic name computation for mappings"""
@@ -94,14 +112,9 @@ class TestZulipChannelMapping(TransactionCase):
                 }
             )
 
-    @patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.zulip")
-    def test_channel_configuration_on_create(self, mock_zulip):
+    def test_channel_configuration_on_create(self):
         """Test that channel is configured for gateway on mapping creation"""
-        # Mock Zulip client
-        mock_client = Mock()
-        mock_zulip.Client.return_value = mock_client
-
-        # Create mapping
+        # Create mapping (using the mocked client from setUp)
         self.env["zulip.channel.mapping"].create(
             {
                 "gateway_id": self.gateway.id,
