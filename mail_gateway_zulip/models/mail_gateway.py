@@ -201,7 +201,8 @@ class MailGateway(models.Model):
                                 _logger.warning(
                                     "Auto-sync enabled for gateway %s but event listener "
                                     "activation failed. Check connection and API credentials. "
-                                    "Try disabling and re-enabling auto-sync if the issue persists.",
+                                    "Try disabling and re-enabling auto-sync if the "
+                                    "issue persists.",
                                     gateway.name,
                                 )
                             else:
@@ -258,33 +259,61 @@ class MailGateway(models.Model):
 
                 # Auto-sync Configuration Check
                 test_results.append("Auto-sync Configuration Check:")
-                
+
                 if self.zulip_auto_sync:
                     if self.zulip_listener_active:
-                        test_results.append("✅ Auto-sync enabled and event listener active")
+                        test_results.append(
+                            "✅ Auto-sync enabled and event listener active"
+                        )
                     else:
-                        test_results.append("⚠️  Auto-sync enabled but event listener inactive")
-                        test_results.append("   Attempting to activate event listener...")
-                        
+                        test_results.append(
+                            "⚠️  Auto-sync enabled but event listener inactive"
+                        )
+                        test_results.append(
+                            "   Attempting to activate event listener..."
+                        )
+
                         # Try to fix the inconsistent state
                         try:
                             zulip_service.start_auto_sync(self)
                             if self.zulip_listener_active:
-                                test_results.append("✅ Event listener successfully activated")
-                                test_results.append("   Auto-sync state has been corrected")
+                                test_results.append(
+                                    "✅ Event listener successfully activated"
+                                )
+                                test_results.append(
+                                    "   Auto-sync state has been corrected"
+                                )
                             else:
-                                test_results.append("❌ Failed to activate event listener")
-                                test_results.append("   • Try disabling and re-enabling auto-sync")
-                                test_results.append("   • Check Odoo logs for detailed errors")
-                                test_results.append("   • Verify bot has necessary permissions")
+                                test_results.append(
+                                    "❌ Failed to activate event listener"
+                                )
+                                test_results.append(
+                                    "   • Try disabling and re-enabling auto-sync"
+                                )
+                                test_results.append(
+                                    "   • Check Odoo logs for detailed errors"
+                                )
+                                test_results.append(
+                                    "   • Verify bot has necessary permissions"
+                                )
                         except Exception as e:
-                            test_results.append(f"❌ Error activating listener: {str(e)}")
-                            test_results.append("   • Check connection and API credentials")
-                            test_results.append("   • Review Odoo logs for full error details")
+                            test_results.append(
+                                f"❌ Error activating listener: {str(e)}"
+                            )
+                            test_results.append(
+                                "   • Check connection and API credentials"
+                            )
+                            test_results.append(
+                                "   • Review Odoo logs for full error details"
+                            )
                 else:
-                    test_results.append("ℹ️  Auto-sync disabled - no event listener needed")
+                    test_results.append(
+                        "ℹ️  Auto-sync disabled - no event listener needed"
+                    )
                     if self.zulip_listener_active:
-                        test_results.append("   Note: Event listener is active but auto-sync is disabled")
+                        test_results.append(
+                            "   Note: Event listener is active but auto-sync is disabled"
+                        )
                         test_results.append("   This is unusual but not problematic")
 
                 test_results.append("")
@@ -321,13 +350,19 @@ class MailGateway(models.Model):
                         "4. Verify stream/topic filters are not too restrictive"
                     )
                 elif self.zulip_auto_sync and not self.zulip_listener_active:
-                    test_results.append("1. Fix the event listener activation issue above")
+                    test_results.append(
+                        "1. Fix the event listener activation issue above"
+                    )
                     test_results.append("2. Try disabling and re-enabling auto-sync")
                     test_results.append("3. Run this test again to verify the fix")
                 else:
-                    test_results.append("1. Enable 'Auto-sync Messages' if you want incoming messages")
+                    test_results.append(
+                        "1. Enable 'Auto-sync Messages' if you want incoming messages"
+                    )
                     test_results.append("2. Configure stream/topic filters as needed")
-                    test_results.append("3. Run this test again after enabling auto-sync")
+                    test_results.append(
+                        "3. Run this test again after enabling auto-sync"
+                    )
             else:
                 test_results.append("1. Fix connection issues shown above")
                 test_results.append("2. Run the test again to verify fixes")

@@ -49,16 +49,18 @@ class TestChannelMappingValidation(TransactionCase):
         self.stream_selection_patcher.start()
 
         # Mock Zulip client for channel configuration
-        self.zulip_patcher = patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.zulip")
+        self.zulip_patcher = patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.zulip"
+        )
         mock_zulip = self.zulip_patcher.start()
         mock_client = MagicMock()
         mock_zulip.Client.return_value = mock_client
-        
+
         # Also patch the service method directly to avoid import issues
         self.service_patcher = patch(
             "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
             "MailGatewayZulipService._get_zulip_client",
-            return_value=mock_client
+            return_value=mock_client,
         )
         self.service_patcher.start()
 

@@ -242,7 +242,7 @@ class MailGatewayZulipService(models.AbstractModel):
                 ("gateway_channel_id", "=", chat.id),
             ]
         )
-        
+
         for notification in notifications:
             # Mark as sent and store the original Zulip message ID
             notification.sudo().write(

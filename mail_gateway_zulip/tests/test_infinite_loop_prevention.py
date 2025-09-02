@@ -307,9 +307,7 @@ class TestInfiniteLoopPrevention(TransactionCase):
         }
 
         # Mock the _receive_update method to track if it's called
-        with patch.object(
-            self.zulip_service, "_receive_update"
-        ) as mock_receive_update:
+        with patch.object(self.zulip_service, "_receive_update") as mock_receive_update:
             # Process the bot message event
             self.zulip_service._process_event(self.gateway, bot_event)
 
@@ -332,16 +330,16 @@ class TestInfiniteLoopPrevention(TransactionCase):
         }
 
         # Mock the _receive_update method to track if it's called
-        with patch.object(
-            self.zulip_service, "_receive_update"
-        ) as mock_receive_update:
+        with patch.object(self.zulip_service, "_receive_update") as mock_receive_update:
             # Process the user message event
             self.zulip_service._process_event(self.gateway, user_event)
 
             # Verify that _receive_update WAS called (message processed)
             mock_receive_update.assert_called_once()
-            
+
             # Verify the correct data was passed
             call_args = mock_receive_update.call_args
             self.assertEqual(call_args[0][0], self.gateway)
-            self.assertEqual(call_args[0][1]["message"]["sender_email"], "user@example.com")
+            self.assertEqual(
+                call_args[0][1]["message"]["sender_email"], "user@example.com"
+            )
