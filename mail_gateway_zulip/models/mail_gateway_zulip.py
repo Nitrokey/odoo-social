@@ -1153,23 +1153,72 @@ class MailGatewayZulipService(models.AbstractModel):
                 str(e),
             )
 
-    def start_auto_sync(self, gateway):
-        """Start auto-sync for a gateway"""
+    def _register_event_queue_with_details(self, gateway, client):
+        """Register event queue with Zulip with detailed error reporting"""
+        try:
+            # Get monitored streams
+            streams = gateway._get_zulip_streams()
+
+            # Register for message events
+            queue_data = {
+                "event_types": ["message"],
+                "all_public_streams": not streams,  # Monitor all if no filter
+            }
+
+            # Add specific streams if filtered
+            if streams:
+                queue_data["narrow"] = [["stream", stream] for stream in streams]
+
+            result = client.register(**queue_data)
+
+            if result.get("result") == "success":
+                gateway.zulip_queue_id = result["queue_id"]
+                gateway.zulip_last_event_id = result["last_event_id"]
+                return True, None
+            else:
+                error_msg = f"Zulip API error: {result.get('msg', 'Unknown error')}"
+                return False, error_msg
+
+        except Exception as e:
+            error_msg = f"Exception during queue registration: {str(e)}"
+            return False, error_msg
+
+    def start_auto_sync_with_details(self, gateway):
+        """Start auto-sync for a gateway with detailed error reporting"""
         if not gateway.zulip_auto_sync:
-            return
+            return False, "Auto-sync is disabled"
 
-        # Register event queue for cron job polling
-        client = self._get_zulip_client(gateway)
-        success = self._register_event_queue(gateway, client)
+        try:
+            # Create client and test basic connectivity
+            client = self._get_zulip_client(gateway)
+            
+            # Test basic API connectivity
+            user_info = client.get_profile()
+            if user_info.get("result") != "success":
+                error_msg = f"API connectivity test failed: {user_info.get('msg', 'Unknown error')}"
+                return False, error_msg
+            
+            # Register event queue for cron job polling
+            success, error_message = self._register_event_queue_with_details(gateway, client)
 
-        if success:
-            # Mark as active (cron job will handle polling)
-            gateway.zulip_listener_active = True
-            _logger.info(
-                "Auto-sync started for gateway %s (cron-based polling)", gateway.name
-            )
-        else:
-            _logger.error("Failed to start auto-sync for gateway %s", gateway.name)
+            if success:
+                # CRITICAL: Mark as active using sudo() to ensure it's written immediately
+                gateway.sudo().write({'zulip_listener_active': True})
+                _logger.info(
+                    "Auto-sync started for gateway %s (cron-based polling)", gateway.name
+                )
+                return True, None
+            else:
+                return False, error_message
+                
+        except Exception as e:
+            error_msg = f"Exception during auto-sync startup: {str(e)}"
+            return False, error_msg
+
+    def start_auto_sync(self, gateway):
+        """Start auto-sync for a gateway (legacy method for backward compatibility)"""
+        success, _ = self.start_auto_sync_with_details(gateway)
+        return success
 
     def stop_auto_sync(self, gateway):
         """Stop auto-sync for a gateway"""

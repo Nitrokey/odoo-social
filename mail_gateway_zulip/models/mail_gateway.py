@@ -88,6 +88,25 @@ class MailGateway(models.Model):
         help="Indicates whether the real-time event listener is currently "
         "running for this gateway. Automatically managed by the system.",
     )
+    zulip_auto_sync_retry_count = fields.Integer(
+        string="Auto-sync Retry Count",
+        default=0,
+        readonly=True,
+        help="Number of consecutive failed attempts to activate auto-sync. "
+        "Reset when auto-sync is successfully activated or manually disabled.",
+    )
+    zulip_auto_sync_last_retry = fields.Datetime(
+        string="Last Auto-sync Retry",
+        readonly=True,
+        help="Timestamp of the last attempt to activate auto-sync. "
+        "Used to implement cooldown periods between retry attempts.",
+    )
+    zulip_auto_sync_failure_reason = fields.Text(
+        string="Auto-sync Failure Reason",
+        readonly=True,
+        help="Detailed reason for the last auto-sync activation failure. "
+        "Helps with troubleshooting connection and configuration issues.",
+    )
 
     # User Mapping Configuration
     zulip_auto_map_users = fields.Boolean(
@@ -152,12 +171,35 @@ class MailGateway(models.Model):
 
     def _should_retry_auto_sync(self):
         """Check if any gateway needs auto-sync retry due to inconsistent state"""
-        return any(
-            gateway.gateway_type == "zulip"
-            and gateway.zulip_auto_sync
-            and not gateway.zulip_listener_active
-            for gateway in self
-        )
+        from datetime import datetime, timedelta
+        
+        now = fields.Datetime.now()
+        
+        for gateway in self:
+            if (
+                gateway.gateway_type == "zulip"
+                and gateway.zulip_auto_sync
+                and not gateway.zulip_listener_active
+            ):
+                # Check retry limits and cooldown
+                max_retries = 5  # Maximum consecutive retry attempts
+                cooldown_minutes = [1, 2, 5, 10, 30]  # Progressive cooldown periods
+                
+                # If we've exceeded max retries, don't retry
+                if gateway.zulip_auto_sync_retry_count >= max_retries:
+                    continue
+                
+                # If we're in cooldown period, don't retry
+                if gateway.zulip_auto_sync_last_retry:
+                    retry_index = min(gateway.zulip_auto_sync_retry_count, len(cooldown_minutes) - 1)
+                    cooldown_period = timedelta(minutes=cooldown_minutes[retry_index])
+                    if now < gateway.zulip_auto_sync_last_retry + cooldown_period:
+                        continue
+                
+                # This gateway needs retry
+                return True
+        
+        return False
 
     def write(self, vals):
         """Override to handle auto-sync and webhook changes"""
@@ -183,29 +225,79 @@ class MailGateway(models.Model):
                                 and not gateway.zulip_listener_active
                             )
 
+                            # Reset retry count if auto-sync is being manually enabled
+                            if "zulip_auto_sync" in vals and vals["zulip_auto_sync"]:
+                                gateway.sudo().write({
+                                    "zulip_auto_sync_retry_count": 0,
+                                    "zulip_auto_sync_last_retry": False,
+                                    "zulip_auto_sync_failure_reason": False,
+                                })
+
                             if is_retry:
+                                # Update retry tracking
+                                gateway.sudo().write({
+                                    "zulip_auto_sync_retry_count": gateway.zulip_auto_sync_retry_count + 1,
+                                    "zulip_auto_sync_last_retry": fields.Datetime.now(),
+                                })
+                                
                                 _logger.info(
-                                    "Detected inconsistent auto-sync state for gateway %s, "
-                                    "attempting to activate event listener",
+                                    "Detected inconsistent auto-sync state for gateway %s "
+                                    "(retry %d/5), attempting to activate event listener",
                                     gateway.name,
+                                    gateway.zulip_auto_sync_retry_count,
                                 )
                             else:
                                 _logger.info(
                                     "Starting auto-sync for gateway %s", gateway.name
                                 )
 
-                            zulip_service.start_auto_sync(gateway)
+                            # Attempt to start auto-sync with enhanced error reporting
+                            success, error_message = zulip_service.start_auto_sync_with_details(gateway)
 
                             # Verify the listener actually started
-                            if not gateway.zulip_listener_active:
-                                _logger.warning(
-                                    "Auto-sync enabled for gateway %s but event listener "
-                                    "activation failed. Check connection and API credentials. "
-                                    "Try disabling and re-enabling auto-sync if the "
-                                    "issue persists.",
-                                    gateway.name,
-                                )
+                            if not gateway.zulip_listener_active or not success:
+                                # Store failure reason
+                                gateway.sudo().write({
+                                    "zulip_auto_sync_failure_reason": error_message or "Event listener activation failed"
+                                })
+                                
+                                if is_retry:
+                                    if gateway.zulip_auto_sync_retry_count >= 5:
+                                        _logger.error(
+                                            "Auto-sync activation failed for gateway %s after %d attempts. "
+                                            "Giving up. Last error: %s. "
+                                            "Please check connection, credentials, and bot permissions, "
+                                            "then disable and re-enable auto-sync to retry.",
+                                            gateway.name,
+                                            gateway.zulip_auto_sync_retry_count,
+                                            error_message or "Unknown error"
+                                        )
+                                    else:
+                                        next_retry_minutes = [1, 2, 5, 10, 30][min(gateway.zulip_auto_sync_retry_count, 4)]
+                                        _logger.warning(
+                                            "Auto-sync activation failed for gateway %s (attempt %d/5). "
+                                            "Error: %s. Will retry in %d minutes.",
+                                            gateway.name,
+                                            gateway.zulip_auto_sync_retry_count,
+                                            error_message or "Unknown error",
+                                            next_retry_minutes
+                                        )
+                                else:
+                                    _logger.warning(
+                                        "Auto-sync enabled for gateway %s but event listener "
+                                        "activation failed. Error: %s. "
+                                        "Will retry automatically with backoff.",
+                                        gateway.name,
+                                        error_message or "Unknown error"
+                                    )
                             else:
+                                # Success - reset retry tracking
+                                gateway.sudo().write({
+                                    "zulip_auto_sync_retry_count": 0,
+                                    "zulip_auto_sync_last_retry": False,
+                                    "zulip_auto_sync_failure_reason": False,
+                                })
+                                
                                 if is_retry:
                                     _logger.info(
                                         "Successfully recovered inconsistent auto-sync state "
@@ -218,11 +310,23 @@ class MailGateway(models.Model):
                                         gateway.name,
                                     )
                         else:
+                            # Auto-sync is being disabled - reset retry tracking
+                            gateway.sudo().write({
+                                "zulip_auto_sync_retry_count": 0,
+                                "zulip_auto_sync_last_retry": False,
+                                "zulip_auto_sync_failure_reason": False,
+                            })
+                            
                             _logger.info(
                                 "Stopping auto-sync for gateway %s", gateway.name
                             )
                             zulip_service.stop_auto_sync(gateway)
                     except Exception as e:
+                        # Store exception details
+                        gateway.sudo().write({
+                            "zulip_auto_sync_failure_reason": f"Exception: {str(e)}"
+                        })
+                        
                         _logger.error(
                             "Failed to %s auto-sync for gateway %s: %s",
                             "start" if gateway.zulip_auto_sync else "stop",
