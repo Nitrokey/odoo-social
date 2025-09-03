@@ -41,8 +41,9 @@ class TestInfiniteLoopPrevention(TransactionCase):
         # Get Zulip service
         self.zulip_service = self.env["mail.gateway.zulip"]
 
-    def test_incoming_message_marked_as_sent(self):
-        """Test that incoming messages from Zulip are marked as sent to prevent loops"""
+    def test_incoming_message_no_notifications_created(self):
+        """Test that incoming messages from Zulip don't create gateway notifications
+        to prevent loops"""
         # Simulate incoming Zulip message
         update_data = {
             "message": {
@@ -63,18 +64,19 @@ class TestInfiniteLoopPrevention(TransactionCase):
         self.assertTrue(result)
         self.assertEqual(result.body, "<p>Hello from Zulip!</p>")
 
-        # Verify that notifications were created and marked as sent
+        # Verify that NO gateway notifications were created (loop prevention)
         notifications = self.env["mail.notification"].search(
             [
                 ("mail_message_id", "=", result.id),
                 ("gateway_channel_id", "=", self.channel.id),
+                ("notification_type", "=", "gateway"),
             ]
         )
 
-        self.assertTrue(notifications)
-        for notification in notifications:
-            self.assertEqual(notification.notification_status, "sent")
-            self.assertEqual(notification.gateway_message_id, "12345")
+        self.assertFalse(
+            notifications,
+            "No gateway notifications should be created for incoming Zulip messages",
+        )
 
     def test_send_method_skips_already_sent_messages(self):
         """Test that _send method skips messages already marked as sent"""
@@ -171,19 +173,22 @@ class TestInfiniteLoopPrevention(TransactionCase):
             self.assertEqual(result.body, "<p>This should not loop back!</p>")
 
             # Verify that no outgoing Zulip API calls were made
-            # (the message should be marked as sent, preventing any send attempts)
+            # (no gateway notifications should be created, preventing any send attempts)
             mock_client.send_message.assert_not_called()
 
-            # Verify notifications are marked as sent
-            notifications = self.env["mail.notification"].search(
+            # Verify NO gateway notifications were created (loop prevention)
+            gateway_notifications = self.env["mail.notification"].search(
                 [
                     ("mail_message_id", "=", result.id),
                     ("gateway_channel_id", "=", self.channel.id),
+                    ("notification_type", "=", "gateway"),
                 ]
             )
 
-            for notification in notifications:
-                self.assertEqual(notification.notification_status, "sent")
+            self.assertFalse(
+                gateway_notifications,
+                "No gateway notifications should be created for incoming Zulip messages",
+            )
 
     def test_normal_outgoing_messages_still_work(self):
         """Test that normal outgoing messages (not from Zulip) still work correctly"""
@@ -343,3 +348,48 @@ class TestInfiniteLoopPrevention(TransactionCase):
             self.assertEqual(
                 call_args[0][1]["message"]["sender_email"], "user@example.com"
             )
+
+    def test_no_gateway_notification_context_flag(self):
+        """Test that the no_gateway_notification context flag prevents notification creation"""
+        # Test direct message posting with context flag
+        message = self.channel.with_context(no_gateway_notification=True).message_post(
+            body="Test message with context flag",
+            message_type="comment",
+        )
+
+        # Verify message was created
+        self.assertTrue(message)
+        self.assertEqual(message.body, "Test message with context flag")
+
+        # Verify NO gateway notifications were created due to context flag
+        gateway_notifications = self.env["mail.notification"].search(
+            [
+                ("mail_message_id", "=", message.id),
+                ("gateway_channel_id", "=", self.channel.id),
+                ("notification_type", "=", "gateway"),
+            ]
+        )
+
+        self.assertFalse(
+            gateway_notifications,
+            "Context flag should prevent gateway notification creation",
+        )
+
+        # Test normal message posting without context flag (should create notifications)
+        normal_message = self.channel.message_post(
+            body="Normal message without context flag",
+            message_type="comment",
+        )
+
+        # Verify gateway notifications WERE created for normal message
+        normal_notifications = self.env["mail.notification"].search(
+            [
+                ("mail_message_id", "=", normal_message.id),
+                ("gateway_channel_id", "=", self.channel.id),
+                ("notification_type", "=", "gateway"),
+            ]
+        )
+
+        self.assertTrue(
+            normal_notifications, "Normal messages should create gateway notifications"
+        )

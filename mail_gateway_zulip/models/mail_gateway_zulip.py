@@ -225,8 +225,9 @@ class MailGatewayZulipService(models.AbstractModel):
         # Get or create author
         author = self._get_author_from_email(gateway, sender_email, sender_full_name)
 
-        # Create message in Odoo
-        new_message = chat.message_post(
+        # Create message in Odoo with no_gateway_notification context to prevent
+        # automatic notification creation and sending back to Zulip (avoid infinite loop)
+        new_message = chat.with_context(no_gateway_notification=True).message_post(
             body=body,
             author_id=author._name == "res.partner" and author.id,
             gateway_type="zulip",
@@ -234,28 +235,12 @@ class MailGatewayZulipService(models.AbstractModel):
             message_type="comment",
         )
 
-        # CRITICAL: Mark all notifications for this message as already sent
-        # to prevent sending the message back to Zulip (avoid infinite loop)
-        notifications = self.env["mail.notification"].search(
-            [
-                ("mail_message_id", "=", new_message.id),
-                ("gateway_channel_id", "=", chat.id),
-            ]
+        _logger.debug(
+            "Created message %s from Zulip with no_gateway_notification context "
+            "(original Zulip message: %s)",
+            new_message.id,
+            message_id,
         )
-
-        for notification in notifications:
-            # Mark as sent and store the original Zulip message ID
-            notification.sudo().write(
-                {
-                    "notification_status": "sent",
-                    "gateway_message_id": str(message_id) if message_id else "",
-                }
-            )
-            _logger.debug(
-                "Marked notification %s as sent to prevent loop (original Zulip message: %s)",
-                notification.id,
-                message_id,
-            )
 
         self._post_process_message(new_message, chat)
         return new_message
@@ -1191,26 +1176,32 @@ class MailGatewayZulipService(models.AbstractModel):
         try:
             # Create client and test basic connectivity
             client = self._get_zulip_client(gateway)
-            
+
             # Test basic API connectivity
             user_info = client.get_profile()
             if user_info.get("result") != "success":
-                error_msg = f"API connectivity test failed: {user_info.get('msg', 'Unknown error')}"
+                error_msg = (
+                    "API connectivity test failed: "
+                    f"{user_info.get('msg', 'Unknown error')}"
+                )
                 return False, error_msg
-            
+
             # Register event queue for cron job polling
-            success, error_message = self._register_event_queue_with_details(gateway, client)
+            success, error_message = self._register_event_queue_with_details(
+                gateway, client
+            )
 
             if success:
                 # CRITICAL: Mark as active using sudo() to ensure it's written immediately
-                gateway.sudo().write({'zulip_listener_active': True})
+                gateway.sudo().write({"zulip_listener_active": True})
                 _logger.info(
-                    "Auto-sync started for gateway %s (cron-based polling)", gateway.name
+                    "Auto-sync started for gateway %s (cron-based polling)",
+                    gateway.name,
                 )
                 return True, None
             else:
                 return False, error_message
-                
+
         except Exception as e:
             error_msg = f"Exception during auto-sync startup: {str(e)}"
             return False, error_msg
