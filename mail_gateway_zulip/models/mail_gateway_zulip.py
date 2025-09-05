@@ -693,19 +693,25 @@ class MailGatewayZulipService(models.AbstractModel):
         """Cron job to poll events AND send pending messages for all active Zulip gateways"""
         _logger.debug("=== ZULIP CRON JOB STARTED ===")
 
-        # Search for gateways with Events API enabled (based on configuration and listener status)
+        # Search for gateways with Events API enabled AND properly configured
         event_gateways = self.env["mail.gateway"].search(
             [
                 ("gateway_type", "=", "zulip"),
                 ("zulip_listener_active", "=", True),
+                ("zulip_server_url", "!=", False),
+                ("zulip_bot_email", "!=", False),
+                ("zulip_api_key", "!=", False),
             ]
         )
 
-        # Search for gateways with async sending enabled
+        # Search for gateways with async sending enabled AND properly configured
         async_gateways = self.env["mail.gateway"].search(
             [
                 ("gateway_type", "=", "zulip"),
                 ("zulip_async_send", "=", True),
+                ("zulip_server_url", "!=", False),
+                ("zulip_bot_email", "!=", False),
+                ("zulip_api_key", "!=", False),
             ]
         )
 
