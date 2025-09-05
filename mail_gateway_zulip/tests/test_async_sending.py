@@ -16,7 +16,6 @@ class TestAsyncSending(TransactionCase):
                 "name": "Test Zulip Gateway",
                 "gateway_type": "zulip",
                 "token": "test_token_123",
-                "webhook_key": "test_webhook_key",
                 "zulip_server_url": "https://test.zulipchat.com",
                 "zulip_bot_email": "test-bot@test.zulipchat.com",
                 "zulip_api_key": "test_api_key_123456789",
@@ -141,10 +140,9 @@ class TestAsyncSending(TransactionCase):
 
     def test_cron_job_combines_event_polling_and_async_sending(self):
         """Test that the main cron job handles both event polling and async sending"""
-        # Enable both auto-sync and async sending
+        # Enable listener (Events API automatically activates when configured)
         self.gateway.write(
             {
-                "zulip_auto_sync": True,
                 "zulip_listener_active": True,
             }
         )

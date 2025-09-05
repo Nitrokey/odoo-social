@@ -34,9 +34,8 @@ Features
 * Automatic channel creation for new Zulip streams/topics
 * User mapping between Zulip users and Odoo partners/guests
 * Message editing synchronization
-* **Real-time auto-sync** using Zulip Events API (no @-mentions required)
+* **Automatic real-time sync** using Zulip Events API (no configuration required)
 * **Hybrid reliability** with long-polling + cron job backup
-* Webhook-based updates for @-mentions (fallback mode)
 * Stream and topic filtering options
 * Enterprise-grade error recovery and reconnection
 
@@ -54,11 +53,6 @@ Zulip Setup
    * Set a name and email for the bot
    * Copy the API key
 
-2. Configure webhook (optional for @-mentions):
-   
-   * Go to Settings → Integrations
-   * Find "Webhook" integration
-   * Set the webhook URL to: ``https://your-odoo-domain.com/gateway/zulip/YOUR_WEBHOOK_KEY/update/json``
 
 Odoo Setup
 ----------
@@ -72,42 +66,30 @@ Odoo Setup
    * **Name**: Choose a descriptive name (e.g., "Company Zulip")
    * **Gateway Type**: Select "Zulip"
    * **Token**: Generate a unique token for this gateway
-   * **Webhook Key**: Generate a unique webhook key
-   * **Webhook Secret**: Optional security token
    * **Zulip Server URL**: Your Zulip server URL (e.g., ``https://your-org.zulipchat.com``)
    * **Bot Email**: The email address of your Zulip bot
    * **API Key**: The API key from your Zulip bot
    * **Stream Filter**: Comma-separated list of streams to monitor (leave empty for all)
    * **Topic Filter**: Comma-separated list of topics to monitor (leave empty for all)
-   * **Auto-sync Messages**: Enable for automatic real-time synchronization
    * **Send Messages Asynchronously**: Enable non-blocking message sending (enabled by default)
 
 4. Add team members to the gateway to give them access to Zulip channels
 
-5. Click "Set Webhook" to activate the integration
+4. The integration will automatically activate when all required fields are configured
 
 Usage
 =====
 
-Auto-sync Mode (Recommended)
------------------------------
+Automatic Synchronization
+-------------------------
 
-When **Auto-sync Messages** is enabled:
+The integration automatically provides:
 
 * **All messages** from monitored streams/topics are automatically synchronized
 * **Real-time delivery** with < 1 second latency using Zulip Events API
-* **No @-mentions required** - every message syncs automatically
+* **No configuration required** - synchronization starts automatically when gateway is properly configured
 * **Backup polling** every minute ensures no messages are missed
 * **Automatic reconnection** handles network interruptions gracefully
-
-Webhook Mode (Fallback)
------------------------
-
-When auto-sync is disabled, the integration works in webhook mode:
-
-* **@-mention the bot** in Zulip to sync specific messages
-* **Manual triggering** required for each message
-* **Reliable fallback** when Events API is unavailable
 
 Channel Creation
 ----------------
@@ -148,7 +130,7 @@ Use the filter options to control which Zulip content is synchronized:
 Monitoring
 ----------
 
-* **Event Listener Active**: Shows if real-time listener is running
+* **Event Listener Active**: Shows if real-time listener is running (automatically activated when configured)
 * **Event Queue ID**: Internal Zulip Events API queue identifier
 * **Last Event ID**: Tracks the last processed event for reliability
 

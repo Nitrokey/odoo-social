@@ -43,60 +43,6 @@ class MailGatewayZulipService(models.AbstractModel):
         _logger.debug("Zulip client created successfully")
         return client
 
-    def _set_webhook(self, gateway):
-        """Set up webhook with Zulip"""
-        try:
-            # Only set webhook if webhook is enabled
-            if not gateway.zulip_webhook_enabled:
-                _logger.info(
-                    "Webhook not enabled for gateway %s, skipping webhook setup",
-                    gateway.name,
-                )
-                return super()._set_webhook(gateway)
-
-            self._get_zulip_client(gateway)
-
-            # Register webhook URL with Zulip
-            # Note: Zulip webhooks are typically configured through the web interface
-            # This method marks the gateway as integrated
-            gateway.integrated_webhook_state = "integrated"
-            _logger.info("Zulip webhook set for gateway %s", gateway.name)
-
-        except Exception as e:
-            _logger.error("Failed to set Zulip webhook: %s", str(e))
-            raise
-
-        return super()._set_webhook(gateway)
-
-    def _remove_webhook(self, gateway):
-        """Remove webhook from Zulip"""
-        try:
-            # Only remove webhook if webhook was enabled
-            if gateway.zulip_webhook_enabled:
-                # Zulip webhooks are typically managed through web interface
-                # This method marks the gateway as not integrated
-                gateway.integrated_webhook_state = False
-                _logger.info("Zulip webhook removed for gateway %s", gateway.name)
-            else:
-                _logger.info(
-                    "Webhook was not enabled for gateway %s, no webhook to remove",
-                    gateway.name,
-                )
-
-        except Exception as e:
-            _logger.error("Failed to remove Zulip webhook: %s", str(e))
-
-        return super()._remove_webhook(gateway)
-
-    def _verify_update(self, bot_data, kwargs):
-        """Verify incoming webhook update"""
-        # For Zulip, we can verify the webhook secret if configured
-        if not bot_data.get("webhook_secret"):
-            return True
-
-        # Check if the request contains the expected secret
-        # This depends on how Zulip webhooks are configured
-        return True  # Simplified for now
 
     def _get_channel_token(self, stream_name, topic_name):
         """Generate unique channel token for stream/topic combination"""
@@ -136,82 +82,6 @@ class MailGatewayZulipService(models.AbstractModel):
         text = html2plaintext(html_text)
         return text
 
-    def _receive_update(self, gateway, update):
-        """Process incoming Zulip webhook update"""
-        try:
-            _logger.info("=== ZULIP SERVICE DEBUG START ===")
-            _logger.info("Gateway: %s (ID: %s)", gateway.name, gateway.id)
-            _logger.info("Update data: %s", update)
-
-            # Parse Zulip webhook data - check both 'message' and 'data' fields
-            message_data = update.get("message", {}) or update.get("data", {})
-            message_type = update.get("type", "")
-
-            _logger.info("Message data extracted: %s", message_data)
-            _logger.info("Message type: %s", message_type)
-
-            # For our test data, we don't have a type field, so process anyway
-            # if message_type != "message":
-            #     return  # Only process messages
-
-            # Extract message information
-            stream_name = message_data.get("display_recipient", "")
-            topic_name = message_data.get("subject", "general")
-            content = message_data.get("content", "")
-            sender_email = message_data.get("sender_email", "")
-            sender_full_name = message_data.get("sender_full_name", "")
-            message_id = message_data.get("id", "")
-
-            _logger.info(
-                "Extracted: stream=%s, topic=%s, content=%s",
-                stream_name,
-                topic_name,
-                content,
-            )
-
-            if not stream_name or not content:
-                _logger.warning(
-                    "Missing required fields: stream_name=%s, content=%s",
-                    stream_name,
-                    content,
-                )
-                return
-
-            # Check for explicit channel mapping first
-            mapping = self.env["zulip.channel.mapping"].find_mapping_for_message(
-                gateway, stream_name, topic_name
-            )
-
-            if mapping:
-                _logger.info(
-                    "Found channel mapping: %s -> %s",
-                    mapping.name,
-                    mapping.odoo_channel_id.name,
-                )
-                chat = mapping.odoo_channel_id
-                # Update mapping stats
-                mapping.update_sync_stats()
-            else:
-                # Fallback to auto-creation (existing logic)
-                _logger.info("No mapping found, using auto-creation")
-                channel_token = self._get_channel_token(stream_name, topic_name)
-                _logger.info("Channel token: %s", channel_token)
-                chat = self._get_channel(gateway, channel_token, update)
-
-            _logger.info("Using channel: %s", chat.name if chat else "NOT FOUND")
-            if not chat:
-                return
-
-            result = self._process_zulip_message(
-                chat, content, sender_email, sender_full_name, message_id, gateway
-            )
-            _logger.info("Message processing result: %s", result)
-            _logger.info("=== ZULIP SERVICE DEBUG END ===")
-            return result
-
-        except Exception as e:
-            _logger.error("Error processing Zulip update: %s", str(e))
-            _logger.error(traceback.format_exc())
 
     def _process_zulip_message(
         self, chat, content, sender_email, sender_full_name, message_id, gateway
@@ -794,8 +664,7 @@ class MailGatewayZulipService(models.AbstractModel):
                 if gateway.zulip_api_key
                 else "NOT SET",
             )
-            _logger.info("  Auto-sync: %s", gateway.zulip_auto_sync)
-            _logger.info("  Webhook State: %s", gateway.integrated_webhook_state)
+            _logger.info("  Configured: %s", gateway._is_zulip_configured())
 
             # Filters
             _logger.info("Filters:")
@@ -824,11 +693,10 @@ class MailGatewayZulipService(models.AbstractModel):
         """Cron job to poll events AND send pending messages for all active Zulip gateways"""
         _logger.debug("=== ZULIP CRON JOB STARTED ===")
 
-        # Search for gateways with Events API enabled (independent of webhook state)
+        # Search for gateways with Events API enabled (based on configuration and listener status)
         event_gateways = self.env["mail.gateway"].search(
             [
                 ("gateway_type", "=", "zulip"),
-                ("zulip_auto_sync", "=", True),
                 ("zulip_listener_active", "=", True),
             ]
         )
@@ -850,7 +718,7 @@ class MailGatewayZulipService(models.AbstractModel):
 
         for gateway in all_gateways:
             try:
-                # Handle incoming events (if auto-sync is enabled)
+                # Handle incoming events (if listener is active)
                 if gateway in event_gateways:
                     self._poll_gateway_events(gateway)
 
@@ -1125,11 +993,37 @@ class MailGatewayZulipService(models.AbstractModel):
 
         # Process the message
         try:
-            # Create update data in webhook format
-            update_data = {"message": message, "type": "message"}
+            # Extract message information
+            stream_name = message.get("display_recipient", "")
+            topic_name = message.get("subject", "general")
+            content = message.get("content", "")
+            sender_email = message.get("sender_email", "")
+            sender_full_name = message.get("sender_full_name", "")
+            message_id = message.get("id", "")
 
-            # Use existing message processing logic
-            self._receive_update(gateway, update_data)
+            if not stream_name or not content:
+                return
+
+            # Check for explicit channel mapping first
+            mapping = self.env["zulip.channel.mapping"].find_mapping_for_message(
+                gateway, stream_name, topic_name
+            )
+
+            if mapping:
+                chat = mapping.odoo_channel_id
+                # Update mapping stats
+                mapping.update_sync_stats()
+            else:
+                # Fallback to auto-creation
+                channel_token = self._get_channel_token(stream_name, topic_name)
+                chat = self._get_channel(gateway, channel_token, {})
+
+            if not chat:
+                return
+
+            self._process_zulip_message(
+                chat, content, sender_email, sender_full_name, message_id, gateway
+            )
 
         except Exception as e:
             _logger.error(
@@ -1169,9 +1063,9 @@ class MailGatewayZulipService(models.AbstractModel):
             return False, error_msg
 
     def start_auto_sync_with_details(self, gateway):
-        """Start auto-sync for a gateway with detailed error reporting"""
-        if not gateway.zulip_auto_sync:
-            return False, "Auto-sync is disabled"
+        """Start event listener for a gateway with detailed error reporting"""
+        if not gateway._is_zulip_configured():
+            return False, "Gateway is not properly configured"
 
         try:
             # Create client and test basic connectivity
@@ -1195,7 +1089,7 @@ class MailGatewayZulipService(models.AbstractModel):
                 # CRITICAL: Mark as active using sudo() to ensure it's written immediately
                 gateway.sudo().write({"zulip_listener_active": True})
                 _logger.info(
-                    "Auto-sync started for gateway %s (cron-based polling)",
+                    "Event listener started for gateway %s (cron-based polling)",
                     gateway.name,
                 )
                 return True, None
@@ -1203,7 +1097,7 @@ class MailGatewayZulipService(models.AbstractModel):
                 return False, error_message
 
         except Exception as e:
-            error_msg = f"Exception during auto-sync startup: {str(e)}"
+            error_msg = f"Exception during event listener startup: {str(e)}"
             return False, error_msg
 
     def start_auto_sync(self, gateway):

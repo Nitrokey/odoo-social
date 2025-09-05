@@ -18,7 +18,6 @@ class TestZulipCronEvents(TransactionCase):
                 "zulip_server_url": "https://test.zulipchat.com",
                 "zulip_bot_email": "bot@test.zulipchat.com",
                 "zulip_api_key": "test_api_key",
-                "zulip_auto_sync": True,
                 "zulip_listener_active": True,
                 "zulip_queue_id": "test_queue_123",
                 "zulip_last_event_id": 100,
@@ -34,8 +33,7 @@ class TestZulipCronEvents(TransactionCase):
                 "name": "Inactive Gateway",
                 "gateway_type": "zulip",
                 "token": "inactive_token",
-                "zulip_auto_sync": False,  # Not active
-                "zulip_listener_active": False,
+                "zulip_listener_active": False,  # Not active
             }
         )
 
@@ -211,7 +209,6 @@ class TestZulipCronEvents(TransactionCase):
                 "name": "Gateway 2",
                 "gateway_type": "zulip",
                 "token": "token_456",
-                "zulip_auto_sync": True,
                 "zulip_listener_active": True,
             }
         )

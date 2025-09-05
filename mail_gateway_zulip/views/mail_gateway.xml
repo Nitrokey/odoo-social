@@ -31,22 +31,18 @@
                     attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
                 />
 
-                <!-- Events API Configuration -->
+                <!-- Events API Status (Read-only) -->
                 <field
-                    name="zulip_auto_sync"
+                    name="zulip_queue_id"
                     attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
                 />
                 <field
-                    name="zulip_queue_id"
-                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_auto_sync', '=', False)]}"
-                />
-                <field
                     name="zulip_last_event_id"
-                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_auto_sync', '=', False)]}"
+                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
                 />
                 <field
                     name="zulip_listener_active"
-                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_auto_sync', '=', False)]}"
+                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
                 />
 
                 <!-- Message Sending Configuration -->
@@ -55,76 +51,26 @@
                     attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
                 />
 
-                <!-- Webhook Configuration (Optional) -->
-                <field
-                    name="zulip_webhook_enabled"
-                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
-                />
-
-                <!-- User Mapping Configuration (controlled by webhook checkbox) -->
+                <!-- User Mapping Configuration -->
                 <field
                     name="zulip_auto_map_users"
-                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}"
+                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
                 />
                 <field
                     name="zulip_auto_map_domain"
-                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), '|', ('zulip_webhook_enabled', '=', False), ('zulip_auto_map_users', '=', False)]}"
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_auto_map_users', '=', False)]}"
                     placeholder="e.g., mycompany.com"
                 />
                 <field
                     name="zulip_create_guests"
-                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}"
+                    attrs="{'invisible': [('gateway_type', '!=', 'zulip')]}"
                 />
                 <field
                     name="zulip_guest_name_format"
-                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), '|', ('zulip_webhook_enabled', '=', False), ('zulip_create_guests', '=', False)]}"
+                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_create_guests', '=', False)]}"
                 />
             </xpath>
 
-            <!-- Hide original webhook fields and replace them with properly ordered ones -->
-            <xpath expr="//field[@name='webhook_key']" position="attributes">
-                <attribute
-                    name="attrs"
-                >{'invisible': [('gateway_type', '=', 'zulip')]}</attribute>
-            </xpath>
-            <xpath expr="//field[@name='webhook_secret']" position="attributes">
-                <attribute
-                    name="attrs"
-                >{'invisible': [('gateway_type', '=', 'zulip')]}</attribute>
-            </xpath>
-            <xpath expr="//field[@name='webhook_url']" position="attributes">
-                <attribute
-                    name="attrs"
-                >{'invisible': [('gateway_type', '=', 'zulip')]}</attribute>
-            </xpath>
-            <xpath
-                expr="//field[@name='integrated_webhook_state']"
-                position="attributes"
-            >
-                <attribute
-                    name="attrs"
-                >{'invisible': [('gateway_type', '=', 'zulip')]}</attribute>
-            </xpath>
-
-            <!-- Insert webhook fields immediately after zulip_webhook_enabled -->
-            <xpath expr="//field[@name='zulip_webhook_enabled']" position="after">
-                <field
-                    name="webhook_key"
-                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)], 'required': [('gateway_type', '=', 'zulip'), ('zulip_webhook_enabled', '=', True)]}"
-                />
-                <field
-                    name="webhook_secret"
-                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}"
-                />
-                <field
-                    name="webhook_url"
-                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), '|', ('zulip_webhook_enabled', '=', False), ('webhook_key', '=', False)]}"
-                />
-                <field
-                    name="integrated_webhook_state"
-                    attrs="{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}"
-                />
-            </xpath>
             <xpath expr="//header" position="inside">
                 <button
                     name="action_test_zulip_connection"
@@ -137,22 +83,6 @@
             </xpath>
 
 
-            <!-- Override webhook buttons to make them conditional -->
-            <xpath expr="//button[@name='set_webhook']" position="attributes">
-                <attribute
-                    name="attrs"
-                >{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}</attribute>
-            </xpath>
-            <xpath expr="//button[@name='update_webhook']" position="attributes">
-                <attribute
-                    name="attrs"
-                >{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}</attribute>
-            </xpath>
-            <xpath expr="//button[@name='remove_webhook']" position="attributes">
-                <attribute
-                    name="attrs"
-                >{'invisible': ['|', ('gateway_type', '!=', 'zulip'), ('zulip_webhook_enabled', '=', False)]}</attribute>
-            </xpath>
         </field>
     </record>
 

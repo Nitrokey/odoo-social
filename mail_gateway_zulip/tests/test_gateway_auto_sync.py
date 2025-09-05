@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 from odoo.tests.common import TransactionCase
 
 
-class TestZulipGatewayAutoSync(TransactionCase):
-    """Test auto-sync functionality and event listener activation"""
+class TestZulipGatewayAutomatic(TransactionCase):
+    """Test automatic Events API activation and event listener functionality"""
 
     def setUp(self):
         super().setUp()
@@ -15,46 +15,80 @@ class TestZulipGatewayAutoSync(TransactionCase):
                 "name": "Test Zulip Gateway",
                 "gateway_type": "zulip",
                 "token": "test_token_123",
-                "webhook_key": "test_webhook_key",
                 "zulip_server_url": "https://test.zulipchat.com",
                 "zulip_bot_email": "bot@test.zulipchat.com",
                 "zulip_api_key": "test_api_key",
-                "zulip_auto_sync": False,
                 "zulip_listener_active": False,
             }
         )
         self.zulip_service = self.env["mail.gateway.zulip"]
 
-    def test_auto_sync_activation_on_write(self):
-        """Test that auto-sync starts when enabled via write()"""
+    def test_automatic_activation_on_configuration(self):
+        """Test that Events API starts automatically when gateway is configured"""
+        # Create gateway without full configuration
+        incomplete_gateway = self.env["mail.gateway"].create(
+            {
+                "name": "Incomplete Gateway",
+                "gateway_type": "zulip",
+                "token": "test_token_456",
+                "zulip_server_url": "https://test.zulipchat.com",
+                "zulip_bot_email": "bot@test.zulipchat.com",
+                # Missing zulip_api_key
+            }
+        )
+
         with patch(
             "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
             "MailGatewayZulipService.start_auto_sync"
         ) as mock_start:
-            # Enable auto-sync
-            self.gateway.write({"zulip_auto_sync": True})
+            # Complete the configuration by adding API key
+            incomplete_gateway.write({"zulip_api_key": "new_api_key"})
 
-            # Verify start_auto_sync was called
-            mock_start.assert_called_once_with(self.gateway)
+            # Verify start_auto_sync was called (automatic activation)
+            mock_start.assert_called_once_with(incomplete_gateway)
 
-    def test_auto_sync_deactivation_on_write(self):
-        """Test that auto-sync stops when disabled via write()"""
-        # First enable auto-sync
-        self.gateway.zulip_auto_sync = True
+    def test_no_activation_when_already_active(self):
+        """Test that no activation occurs when listener is already active"""
+        # Set gateway as already active
+        self.gateway.write({"zulip_listener_active": True})
 
         with patch(
             "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
-            "MailGatewayZulipService.stop_auto_sync"
-        ) as mock_stop:
-            # Then disable it
-            self.gateway.write({"zulip_auto_sync": False})
+            "MailGatewayZulipService.start_auto_sync"
+        ) as mock_start:
+            # Update gateway configuration
+            self.gateway.write({"name": "Updated Gateway Name"})
 
-            # Verify stop_auto_sync was called
-            mock_stop.assert_called_once_with(self.gateway)
+            # Verify start_auto_sync was NOT called (already active)
+            mock_start.assert_not_called()
+
+    def test_no_activation_when_not_configured(self):
+        """Test that no activation occurs when gateway is not fully configured"""
+        # Create gateway without API key
+        incomplete_gateway = self.env["mail.gateway"].create(
+            {
+                "name": "Incomplete Gateway",
+                "gateway_type": "zulip",
+                "token": "test_token_789",
+                "zulip_server_url": "https://test.zulipchat.com",
+                "zulip_bot_email": "bot@test.zulipchat.com",
+                # Missing zulip_api_key
+            }
+        )
+
+        with patch(
+            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
+            "MailGatewayZulipService.start_auto_sync"
+        ) as mock_start:
+            # Update gateway name (but still not configured)
+            incomplete_gateway.write({"name": "Still Incomplete"})
+
+            # Verify start_auto_sync was NOT called (not configured)
+            mock_start.assert_not_called()
 
     @patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.zulip")
-    def test_start_auto_sync_success(self, mock_zulip):
-        """Test successful auto-sync start"""
+    def test_start_events_api_success(self, mock_zulip):
+        """Test successful Events API start"""
         # Mock Zulip client and successful queue registration
         mock_client = Mock()
         mock_zulip.Client.return_value = mock_client
@@ -64,10 +98,7 @@ class TestZulipGatewayAutoSync(TransactionCase):
             "last_event_id": 42,
         }
 
-        # Enable auto-sync first (required by start_auto_sync method)
-        self.gateway.zulip_auto_sync = True
-
-        # Start auto-sync
+        # Start Events API
         self.zulip_service.start_auto_sync(self.gateway)
 
         # Verify gateway state
@@ -76,8 +107,8 @@ class TestZulipGatewayAutoSync(TransactionCase):
         self.assertEqual(self.gateway.zulip_last_event_id, 42)
 
     @patch("odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip.zulip")
-    def test_start_auto_sync_failure(self, mock_zulip):
-        """Test auto-sync start failure"""
+    def test_start_events_api_failure(self, mock_zulip):
+        """Test Events API start failure"""
         # Mock Zulip client and failed queue registration
         mock_client = Mock()
         mock_zulip.Client.return_value = mock_client
@@ -86,16 +117,16 @@ class TestZulipGatewayAutoSync(TransactionCase):
             "msg": "Authentication failed",
         }
 
-        # Start auto-sync
+        # Start Events API
         self.zulip_service.start_auto_sync(self.gateway)
 
         # Verify gateway state remains unchanged
         self.assertFalse(self.gateway.zulip_listener_active)
         self.assertFalse(self.gateway.zulip_queue_id)
 
-    def test_stop_auto_sync(self):
-        """Test auto-sync stop"""
-        # Set up active auto-sync state
+    def test_stop_events_api(self):
+        """Test Events API stop"""
+        # Set up active Events API state
         self.gateway.write(
             {
                 "zulip_listener_active": True,
@@ -104,7 +135,7 @@ class TestZulipGatewayAutoSync(TransactionCase):
             }
         )
 
-        # Stop auto-sync
+        # Stop Events API
         self.zulip_service.stop_auto_sync(self.gateway)
 
         # Verify gateway state is reset
@@ -165,35 +196,46 @@ class TestZulipGatewayAutoSync(TransactionCase):
         )
 
     def test_write_method_error_handling(self):
-        """Test that write method handles auto-sync errors gracefully"""
+        """Test that write method handles Events API activation errors gracefully"""
         with patch(
             "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
             "MailGatewayZulipService.start_auto_sync",
             side_effect=Exception("Test error"),
         ):
             # This should not raise an exception
-            self.gateway.write({"zulip_auto_sync": True})
+            self.gateway.write({"zulip_api_key": "new_key"})
 
             # Gateway should still be updated
-            self.assertTrue(self.gateway.zulip_auto_sync)
+            self.assertEqual(self.gateway.zulip_api_key, "new_key")
 
-    def test_non_zulip_gateway_ignored(self):
-        """Test that non-Zulip gateways are ignored in auto-sync logic"""
-        # Create a second Zulip gateway but test that only Zulip gateways trigger auto-sync
-        other_gateway = self.env["mail.gateway"].create(
+    def test_configuration_check_helper(self):
+        """Test the _is_zulip_configured helper method"""
+        # Test with incomplete configuration
+        incomplete_gateway = self.env["mail.gateway"].create(
             {
-                "name": "Test Other Zulip Gateway",
+                "name": "Incomplete Gateway",
                 "gateway_type": "zulip",
-                "token": "test_token_456",
+                "token": "test_token",
+                "zulip_server_url": "https://test.zulipchat.com",
+                "zulip_bot_email": "bot@test.zulipchat.com",
+                # Missing zulip_api_key
             }
         )
+        self.assertFalse(incomplete_gateway._is_zulip_configured())
 
-        with patch(
-            "odoo.addons.mail_gateway_zulip.models.mail_gateway_zulip."
-            "MailGatewayZulipService.start_auto_sync"
-        ) as mock_start:
-            # Enable auto-sync on the other Zulip gateway
-            other_gateway.write({"zulip_auto_sync": True})
+        # Test with complete configuration
+        self.assertTrue(self.gateway._is_zulip_configured())
 
-            # Verify start_auto_sync was called for the Zulip gateway
-            mock_start.assert_called_once_with(other_gateway)
+    def test_should_retry_activation_helper(self):
+        """Test the _should_retry_activation helper method"""
+        # Test with configured but inactive gateway
+        self.gateway.write({"zulip_listener_active": False})
+        self.assertTrue(self.gateway._should_retry_activation())
+
+        # Test with configured and active gateway
+        self.gateway.write({"zulip_listener_active": True})
+        self.assertFalse(self.gateway._should_retry_activation())
+
+        # Test with unconfigured gateway
+        self.gateway.write({"zulip_api_key": False, "zulip_listener_active": False})
+        self.assertFalse(self.gateway._should_retry_activation())

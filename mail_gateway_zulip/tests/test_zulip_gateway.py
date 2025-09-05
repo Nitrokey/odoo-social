@@ -14,7 +14,6 @@ class TestZulipGateway(TransactionCase):
                 "name": "Test Zulip Gateway",
                 "gateway_type": "zulip",
                 "token": "test_token_123",
-                "webhook_key": "test_webhook_key",
                 "zulip_server_url": "https://test.zulipchat.com",
                 "zulip_bot_email": "bot@test.zulipchat.com",
                 "zulip_api_key": "test_api_key",

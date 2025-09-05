@@ -18,11 +18,9 @@ class TestInfiniteLoopPrevention(TransactionCase):
                 "name": "Test Zulip Gateway",
                 "gateway_type": "zulip",
                 "token": "test-gateway-token",
-                "webhook_key": "test-webhook-key",
                 "zulip_server_url": "https://test.zulipchat.com",
                 "zulip_bot_email": "bot@test.zulipchat.com",
                 "zulip_api_key": "test-api-key",
-                "zulip_auto_sync": True,
                 "zulip_listener_active": True,
                 "zulip_async_send": False,  # Test synchronous sending first
             }

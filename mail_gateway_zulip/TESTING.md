@@ -20,8 +20,6 @@ This guide explains how to test the Odoo-Zulip integration.
      - **Name**: "Test Zulip Gateway"
      - **Token**: "zulip-test-001" (any unique value)
      - **Gateway Type**: "Zulip"
-     - **Webhook Key**: Generate random string (e.g., "webhook-test-123")
-     - **Webhook Secret**: Generate random string (optional but recommended)
      - **Zulip Server URL**: Your Zulip URL (e.g., "https://your-org.zulipchat.com")
      - **Bot Email**: Your Zulip bot email
      - **API Key**: Your Zulip bot API key
@@ -29,9 +27,8 @@ This guide explains how to test the Odoo-Zulip integration.
    - Save the record
 
 2. **Test API Connection**:
-   - Click "Integrate Webhook" button
-   - Check if status changes to "Integrated"
-   - Look for success/error messages in Odoo logs
+   - Use "Test Connection" button to verify API connectivity
+   - Check for success/error messages in Odoo logs
 
 ### Phase 2: Manual Test Channel Creation
 
@@ -292,10 +289,7 @@ if gateway.zulip_auto_sync and not gateway.zulip_listener_active:
 
 ### Log Messages to Look For:
 
-- "Zulip webhook set for gateway X" (success)
 - "Message sent to Zulip: Y" (outbound success)
-- "Error processing Zulip update" (inbound error)
-- "Failed to set Zulip webhook" (configuration error)
 - "Auto-sync started for gateway X" (listener started)
 - "Successfully registered event queue" (Events API working)
 - "Processed N events for gateway X" (messages being received)

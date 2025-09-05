@@ -18,20 +18,18 @@ class TestAutoSyncRecovery(TransactionCase):
                 "name": "Test Zulip Gateway",
                 "gateway_type": "zulip",
                 "token": "test-gateway-token",
-                "webhook_key": "test-webhook-key",
                 "zulip_server_url": "https://test.zulipchat.com",
                 "zulip_bot_email": "bot@test.zulipchat.com",
                 "zulip_api_key": "test-api-key",
-                "zulip_auto_sync": True,  # Auto-sync enabled
-                "zulip_listener_active": False,  # But listener inactive (inconsistent state)
+                "zulip_listener_active": False,  # Listener inactive (inconsistent state)
                 "zulip_queue_id": "test-queue-123",  # Has queue ID
             }
         )
 
     def test_auto_recovery_on_write(self):
-        """Test that inconsistent auto-sync state is detected and fixed on write"""
-        # Verify initial inconsistent state
-        self.assertTrue(self.gateway.zulip_auto_sync)
+        """Test that inconsistent state is detected and fixed on write"""
+        # Verify initial inconsistent state (configured but listener inactive)
+        self.assertTrue(self.gateway._is_zulip_configured())
         self.assertFalse(self.gateway.zulip_listener_active)
 
         # Mock the start_auto_sync method to simulate successful activation
@@ -56,10 +54,9 @@ class TestAutoSyncRecovery(TransactionCase):
 
     def test_no_recovery_when_consistent(self):
         """Test that no recovery is attempted when state is consistent"""
-        # Set consistent state (auto-sync enabled and listener active)
+        # Set consistent state (configured and listener active)
         self.gateway.write(
             {
-                "zulip_auto_sync": True,
                 "zulip_listener_active": True,
             }
         )
@@ -74,13 +71,13 @@ class TestAutoSyncRecovery(TransactionCase):
             # Verify that start_auto_sync was NOT called (no recovery needed)
             mock_start_auto_sync.assert_not_called()
 
-    def test_recovery_when_auto_sync_disabled(self):
-        """Test that no recovery is attempted when auto-sync is disabled"""
-        # Set state where auto-sync is disabled
+    def test_recovery_when_not_configured(self):
+        """Test that no recovery is attempted when gateway is not configured"""
+        # Set state where gateway is not configured (missing API key)
         self.gateway.write(
             {
-                "zulip_auto_sync": False,
-                "zulip_listener_active": True,  # Listener active but auto-sync disabled
+                "zulip_api_key": False,
+                "zulip_listener_active": True,  # Listener active but not configured
             }
         )
 
@@ -97,7 +94,7 @@ class TestAutoSyncRecovery(TransactionCase):
     def test_recovery_failure_handling(self):
         """Test that recovery failure is handled gracefully"""
         # Verify initial inconsistent state
-        self.assertTrue(self.gateway.zulip_auto_sync)
+        self.assertTrue(self.gateway._is_zulip_configured())
         self.assertFalse(self.gateway.zulip_listener_active)
 
         # Mock start_auto_sync to fail
@@ -115,13 +112,13 @@ class TestAutoSyncRecovery(TransactionCase):
             mock_start_auto_sync.assert_called_once_with(self.gateway)
 
             # Verify that the state remains inconsistent (recovery failed)
-            self.assertTrue(self.gateway.zulip_auto_sync)
+            self.assertTrue(self.gateway._is_zulip_configured())
             self.assertFalse(self.gateway.zulip_listener_active)
 
     def test_recovery_with_exception(self):
         """Test that exceptions during recovery don't break the write operation"""
         # Verify initial inconsistent state
-        self.assertTrue(self.gateway.zulip_auto_sync)
+        self.assertTrue(self.gateway._is_zulip_configured())
         self.assertFalse(self.gateway.zulip_listener_active)
 
         # Mock start_auto_sync to raise exception
@@ -140,39 +137,37 @@ class TestAutoSyncRecovery(TransactionCase):
             # Verify that start_auto_sync was called
             mock_start_auto_sync.assert_called_once_with(self.gateway)
 
-    def test_should_retry_auto_sync_helper(self):
-        """Test the _should_retry_auto_sync helper method"""
-        # Test with inconsistent state
+    def test_should_retry_activation_helper(self):
+        """Test the _should_retry_activation helper method"""
+        # Test with inconsistent state (configured but listener inactive)
         self.gateway.write(
             {
-                "zulip_auto_sync": True,
                 "zulip_listener_active": False,
             }
         )
-        self.assertTrue(self.gateway._should_retry_auto_sync())
+        self.assertTrue(self.gateway._should_retry_activation())
 
-        # Test with consistent state (auto-sync enabled, listener active)
+        # Test with consistent state (configured and listener active)
         self.gateway.write(
             {
-                "zulip_auto_sync": True,
                 "zulip_listener_active": True,
             }
         )
-        self.assertFalse(self.gateway._should_retry_auto_sync())
+        self.assertFalse(self.gateway._should_retry_activation())
 
-        # Test with auto-sync disabled
+        # Test with not configured
         self.gateway.write(
             {
-                "zulip_auto_sync": False,
+                "zulip_api_key": False,
                 "zulip_listener_active": False,
             }
         )
-        self.assertFalse(self.gateway._should_retry_auto_sync())
+        self.assertFalse(self.gateway._should_retry_activation())
 
     def test_test_connection_detects_inconsistent_state(self):
         """Test that the Test Connection button detects and fixes inconsistent state"""
         # Verify initial inconsistent state
-        self.assertTrue(self.gateway.zulip_auto_sync)
+        self.assertTrue(self.gateway._is_zulip_configured())
         self.assertFalse(self.gateway.zulip_listener_active)
 
         # Mock the Zulip service methods
@@ -223,7 +218,6 @@ class TestAutoSyncRecovery(TransactionCase):
                 "zulip_server_url": "https://test2.zulipchat.com",
                 "zulip_bot_email": "bot2@test.zulipchat.com",
                 "zulip_api_key": "test-api-key-2",
-                "zulip_auto_sync": True,
                 "zulip_listener_active": False,
             }
         )
