@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- LiveKit Server Form View -->
+        <record id="view_mail_livekit_server_form" model="ir.ui.view">
+            <field name="name">mail.livekit.server.form</field>
+            <field name="model">mail.livekit.server</field>
+            <field name="arch" type="xml">
+                <form string="LiveKit Server">
+                    <header>
+                        <button name="test_connection" 
+                                string="Test Connection" 
+                                type="object" 
+                                class="btn-primary"
+                                help="Test the LiveKit server connection and configuration"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name"/>
+                                <field name="server_url"/>
+                                <field name="api_key"/>
+                            </group>
+                            <group>
+                                <field name="api_secret" password="True"/>
+                                <field name="active"/>
+                            </group>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- LiveKit Server Tree View -->
+        <record id="view_mail_livekit_server_tree" model="ir.ui.view">
+            <field name="name">mail.livekit.server.tree</field>
+            <field name="model">mail.livekit.server</field>
+            <field name="arch" type="xml">
+                <tree string="LiveKit Servers">
+                    <field name="name"/>
+                    <field name="server_url"/>
+                    <field name="active"/>
+                    <button name="test_connection" 
+                            string="Test" 
+                            type="object" 
+                            class="btn-link"
+                            icon="fa-plug"
+                            help="Test connection to this LiveKit server"/>
+                </tree>
+            </field>
+        </record>
+
+        <!-- LiveKit Server Action -->
+        <record id="action_mail_livekit_server" model="ir.actions.act_window">
+            <field name="name">LiveKit Servers</field>
+            <field name="res_model">mail.livekit.server</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create your first LiveKit server configuration
+                </p>
+                <p>
+                    Configure LiveKit servers to enable video and voice calls in Odoo.
+                </p>
+            </field>
+        </record>
+
+        <!-- LiveKit Servers Menu Item -->
+        <menuitem id="menu_mail_livekit_server"
+                  name="LiveKit Servers"
+                  parent="mail.mail_menu_technical"
+                  action="action_mail_livekit_server"
+                  sequence="10"/>
+    </data>
+</odoo>
