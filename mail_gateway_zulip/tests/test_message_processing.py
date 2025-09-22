@@ -430,3 +430,88 @@ class TestZulipMessageProcessing(TransactionCase):
         # Test empty content
         self.assertEqual(self.zulip_service._markdown_to_html(""), "")
         self.assertEqual(self.zulip_service._html_to_markdown(""), "")
+
+    def test_zulip_mention_conversion(self):
+        """Test conversion of Zulip mentions (@**User Name**) to Odoo mentions"""
+        # Create a test user
+        test_user = self.env["res.users"].create({
+            "name": "Alice Smith",
+            "login": "alice.smith@example.com",
+            "email": "alice.smith@example.com",
+        })
+
+        # Test mention conversion with gateway
+        zulip_content = "Hello @**Alice Smith**, how are you?"
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        # Should convert to Odoo mention format
+        expected_html = f'<p>Hello <a data-oe-model="res.partner" data-oe-id="{test_user.partner_id.id}">@Alice Smith</a>, how are you?</p>'
+        self.assertEqual(html_result, expected_html)
+
+    def test_zulip_mention_conversion_no_user_found(self):
+        """Test mention conversion when no matching user is found"""
+        # Test with non-existent user
+        zulip_content = "Hello @**Unknown User**, how are you?"
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        # Should remove ** formatting but keep @mention
+        expected_html = "<p>Hello @Unknown User, how are you?</p>"
+        self.assertEqual(html_result, expected_html)
+
+    def test_zulip_mention_conversion_multiple_mentions(self):
+        """Test conversion of multiple mentions in one message"""
+        # Create test users
+        user1 = self.env["res.users"].create({
+            "name": "Bob Jones",
+            "login": "bob.jones@example.com",
+            "email": "bob.jones@example.com",
+        })
+        user2 = self.env["res.users"].create({
+            "name": "Carol White",
+            "login": "carol.white@example.com", 
+            "email": "carol.white@example.com",
+        })
+
+        # Test multiple mentions
+        zulip_content = "Meeting with @**Bob Jones** and @**Carol White** at 3pm. @**Unknown Person** is also invited."
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        # Should convert known users and leave unknown as plain text
+        expected_html = (
+            f'<p>Meeting with <a data-oe-model="res.partner" data-oe-id="{user1.partner_id.id}">@Bob Jones</a> '
+            f'and <a data-oe-model="res.partner" data-oe-id="{user2.partner_id.id}">@Carol White</a> '
+            f'at 3pm. @Unknown Person is also invited.</p>'
+        )
+        self.assertEqual(html_result, expected_html)
+
+    def test_zulip_mention_conversion_without_gateway(self):
+        """Test that mentions are not converted when no gateway is provided"""
+        zulip_content = "Hello @**Alice Smith**, how are you?"
+        html_result = self.zulip_service._markdown_to_html(zulip_content)
+        
+        # Should not convert mentions without gateway
+        expected_html = "<p>Hello @**Alice Smith**, how are you?</p>"
+        self.assertEqual(html_result, expected_html)
+
+    def test_zulip_mention_conversion_with_gateway_mapping(self):
+        """Test mention conversion using Gateway Partner Channel mapping"""
+        # Create a partner
+        partner = self.env["res.partner"].create({
+            "name": "David Brown",
+            "email": "david.brown@example.com",
+        })
+
+        # Create Gateway Partner Channel mapping
+        self.env["res.partner.gateway.channel"].create({
+            "partner_id": partner.id,
+            "gateway_id": self.gateway.id,
+            "gateway_token": "david.brown@example.com",
+        })
+
+        # Test mention conversion
+        zulip_content = "Hi @**David Brown**, please review this."
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        # Should find user via Gateway Partner Channel mapping
+        expected_html = f'<p>Hi <a data-oe-model="res.partner" data-oe-id="{partner.id}">@David Brown</a>, please review this.</p>'
+        self.assertEqual(html_result, expected_html)

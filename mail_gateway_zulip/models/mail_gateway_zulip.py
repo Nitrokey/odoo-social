@@ -2,6 +2,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 import logging
+import re
 import traceback
 from io import StringIO
 
@@ -64,14 +65,74 @@ class MailGatewayZulipService(models.AbstractModel):
 
         return result
 
-    def _markdown_to_html(self, markdown_text):
-        """Convert Zulip markdown to HTML (simplified)"""
+    def _find_user_by_zulip_name(self, gateway, zulip_name):
+        """Find Odoo user by Zulip display name using existing mappings"""
+        # 1. Check existing Gateway Partner Channel mappings
+        # Look for partners whose names match the Zulip mention
+        mappings = self.env["res.partner.gateway.channel"].search([
+            ("gateway_id", "=", gateway.id)
+        ])
+        
+        for mapping in mappings:
+            if mapping.partner_id.name == zulip_name:
+                _logger.debug(
+                    "Found user via Gateway Partner Channel mapping: %s -> %s",
+                    zulip_name, mapping.partner_id.name
+                )
+                return mapping.partner_id
+        
+        # 2. Fallback to direct name search in Odoo users
+        user = self.env["res.users"].search([
+            ("name", "=", zulip_name),
+            ("active", "=", True)
+        ], limit=1)
+        
+        if user:
+            _logger.debug(
+                "Found user via direct name search: %s -> %s",
+                zulip_name, user.partner_id.name
+            )
+            return user.partner_id
+        
+        # 3. Try partner search as fallback
+        partner = self.env["res.partner"].search([
+            ("name", "=", zulip_name)
+        ], limit=1)
+        
+        if partner:
+            _logger.debug(
+                "Found partner via direct name search: %s -> %s",
+                zulip_name, partner.name
+            )
+            return partner
+        
+        _logger.debug("No user found for Zulip name: %s", zulip_name)
+        return None
+
+    def _markdown_to_html(self, markdown_text, gateway=None):
+        """Convert Zulip markdown to HTML with user mention conversion"""
         if not markdown_text:
             return ""
 
-        # For now, just return the text as-is wrapped in <p> tags
-        # In the future, you could implement proper markdown parsing
-        return f"<p>{markdown_text}</p>"
+        content = markdown_text
+
+        # Convert Zulip user mentions (@**User Name**) to Odoo mentions if gateway is provided
+        if gateway:
+            def replace_mention(match):
+                user_name = match.group(1)
+                partner = self._find_user_by_zulip_name(gateway, user_name)
+                
+                if partner:
+                    # Convert to Odoo mention format
+                    return f'<a data-oe-model="res.partner" data-oe-id="{partner.id}">@{user_name}</a>'
+                else:
+                    # If no user found, just remove the ** formatting
+                    return f"@{user_name}"
+            
+            # Replace Zulip mentions with Odoo mentions
+            content = re.sub(r'@\*\*([^*]+)\*\*', replace_mention, content)
+
+        return f"<p>{content}</p>"
 
     def _html_to_markdown(self, html_text):
         """Convert HTML to Zulip markdown (simplified)"""
@@ -101,8 +162,8 @@ class MailGatewayZulipService(models.AbstractModel):
         """Process a Zulip message and create corresponding Odoo message"""
         chat.ensure_one()
 
-        # Convert markdown to HTML
-        body = self._markdown_to_html(content)
+        # Convert markdown to HTML with mention conversion
+        body = self._markdown_to_html(content, gateway)
 
         # Get or create author
         author = self._get_author_from_email(gateway, sender_email, sender_full_name)
