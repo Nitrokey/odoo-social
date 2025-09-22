@@ -82,6 +82,18 @@ class MailGatewayZulipService(models.AbstractModel):
         text = html2plaintext(html_text)
         return text
 
+    def _get_message_body(self, record):
+        """Override to add 'Send from USER NAME:' prefix to messages sent to Zulip"""
+        body = super()._get_message_body(record)
+        
+        # Get the author from the mail message
+        author = record.mail_message_id.author_id
+        if author and author.name:
+            user_name = author.name
+            # Add prefix as HTML (will be converted to Markdown later)
+            body = f"<p>Sent from <strong>{user_name}</strong>:</p>\n{body}"
+        
+        return body
 
     def _process_zulip_message(
         self, chat, content, sender_email, sender_full_name, message_id, gateway

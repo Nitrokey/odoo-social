@@ -358,11 +358,19 @@ class TestZulipMessageProcessing(TransactionCase):
             "id": 98765,
         }
 
+        # Create a user with a specific name to test the prefix
+        test_user = self.env["res.users"].create({
+            "name": "John Doe",
+            "login": "john.doe@example.com",
+            "email": "john.doe@example.com",
+        })
+
         # Create notification record
         message = self.env["mail.message"].create(
             {
                 "subject": "Test Message",
                 "body": "<p>Hello Zulip!</p>",
+                "author_id": test_user.partner_id.id,
                 "message_type": "comment",
             }
         )
@@ -396,7 +404,11 @@ class TestZulipMessageProcessing(TransactionCase):
         self.assertEqual(call_args["type"], "stream")
         self.assertEqual(call_args["to"], "general")
         self.assertEqual(call_args["topic"], "test")
-        self.assertEqual(call_args["content"], "Hello Zulip!")
+        
+        # Verify that the user name prefix is included in the content
+        content = call_args["content"]
+        self.assertIn("Sent from John Doe:", content)
+        self.assertIn("Hello Zulip!", content)
 
         # Verify notification status
         self.assertEqual(notification.notification_status, "sent")
