@@ -68,6 +68,11 @@ class MailGatewayZulipService(models.AbstractModel):
         result["name"] = f"Zulip: {stream_name} / {topic_name}"
         result["anonymous_name"] = f"{stream_name} / {topic_name}"
 
+        # CRITICAL FIX: Don't set channel_type to 'gateway' as it makes channels
+        # disappear from Discuss. Gateway functionality works with gateway_id 
+        # and gateway_channel_token fields. Use 'channel' type for visibility.
+        result["channel_type"] = "channel"
+
         return result
 
     def _find_user_by_zulip_name(self, gateway, zulip_name):
