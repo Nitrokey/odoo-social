@@ -891,7 +891,7 @@ class MailGatewayZulipService(models.AbstractModel):
             # Find all pending notifications for this gateway
             pending_notifications = self.env["mail.notification"].search(
                 [
-                    ("notification_type", "=", "inbox"),
+                    ("notification_type", "=", "gateway"),
                     ("gateway_channel_id.gateway_id", "=", gateway.id),
                     ("notification_status", "=", "ready"),
                 ]

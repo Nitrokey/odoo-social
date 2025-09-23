@@ -53,7 +53,7 @@ class TestAsyncSending(TransactionCase):
             {
                 "mail_message_id": self.message.id,
                 "res_partner_id": self.partner.id,
-                "notification_type": "inbox",
+                "notification_type": "gateway",  # Fixed: Use correct type for gateway notifications
                 "notification_status": "ready",
             }
         )
