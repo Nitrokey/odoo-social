@@ -14,11 +14,15 @@
         "views/zulip_channel_mapping.xml",
         "views/zulip_test_wizard_views.xml",
     ],
-    "external_dependencies": {"python": ["zulip"]},
+    "external_dependencies": {"python": ["zulip", "html2text"]},
     "assets": {
+        "web.assets_backend": [
+            "mail_gateway_zulip/static/src/css/zulip_quotes.css",
+        ],
         "mail.assets_messaging": [
             "mail_gateway_zulip/static/src/models/**/*.js",
             "mail_gateway_zulip/static/src/components/**/*.xml",
+            "mail_gateway_zulip/static/src/css/zulip_quotes.css",
         ],
     },
 }

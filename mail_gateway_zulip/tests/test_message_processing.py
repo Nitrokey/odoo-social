@@ -420,16 +420,67 @@ class TestZulipMessageProcessing(TransactionCase):
         html = self.zulip_service._markdown_to_html("**bold** text")
         self.assertEqual(html, "<p>**bold** text</p>")
 
-        # Test HTML to markdown - the implementation uses html2plaintext
-        # which converts <strong> to *text*
+        # Test HTML to markdown - now uses html2text for proper conversion
         markdown = self.zulip_service._html_to_markdown(
             "<p><strong>bold</strong> text</p>"
         )
-        self.assertEqual(markdown, "*bold* text")
+        self.assertEqual(markdown, "**bold** text")
 
         # Test empty content
         self.assertEqual(self.zulip_service._markdown_to_html(""), "")
         self.assertEqual(self.zulip_service._html_to_markdown(""), "")
+
+    def test_html_to_markdown_bold_formatting(self):
+        """Test that HTML bold tags are properly converted to Zulip markdown"""
+        # Test <strong> tag conversion
+        html_strong = "<p><strong>Sent from John Doe:</strong></p>"
+        markdown_result = self.zulip_service._html_to_markdown(html_strong)
+        self.assertEqual(markdown_result, "**Sent from John Doe:**")
+
+        # Test <b> tag conversion
+        html_b = "<p><b>Sent from Jane Smith:</b></p>"
+        markdown_result = self.zulip_service._html_to_markdown(html_b)
+        self.assertEqual(markdown_result, "**Sent from Jane Smith:**")
+
+        # Test mixed content with bold
+        html_mixed = "<p><strong>Important:</strong> This is a test message with <em>italic</em> text.</p>"
+        markdown_result = self.zulip_service._html_to_markdown(html_mixed)
+        self.assertIn("**Important:**", markdown_result)
+        self.assertIn("*italic*", markdown_result)
+        self.assertIn("This is a test message", markdown_result)
+
+    def test_user_prefix_bold_formatting(self):
+        """Test that the user prefix appears as bold in Zulip"""
+        # Create a test user
+        test_user = self.env["res.users"].create({
+            "name": "Test User",
+            "login": "test.user@example.com",
+            "email": "test.user@example.com",
+        })
+
+        # Create a test message
+        message = self.env["mail.message"].create({
+            "body": "<p>Hello World!</p>",
+            "author_id": test_user.partner_id.id,
+            "message_type": "comment",
+        })
+
+        # Create a test notification
+        notification = self.env["mail.notification"].create({
+            "mail_message_id": message.id,
+            "notification_type": "inbox",
+            "notification_status": "ready",
+        })
+
+        # Get the message body with prefix
+        body_with_prefix = self.zulip_service._get_message_body(notification)
+        
+        # Convert to markdown
+        markdown_content = self.zulip_service._html_to_markdown(body_with_prefix)
+        
+        # Verify the prefix appears as bold markdown
+        self.assertIn("**Sent from Test User:**", markdown_content)
+        self.assertIn("Hello World!", markdown_content)
 
     def test_zulip_mention_conversion(self):
         """Test conversion of Zulip mentions (@**User Name**) to Odoo mentions"""
@@ -515,3 +566,218 @@ class TestZulipMessageProcessing(TransactionCase):
         # Should find user via Gateway Partner Channel mapping
         expected_html = f'<p>Hi <a data-oe-model="res.partner" data-oe-id="{partner.id}">@David Brown</a>, please review this.</p>'
         self.assertEqual(html_result, expected_html)
+
+    def test_zulip_quote_block_processing(self):
+        """Test processing of Zulip quote code fences with CSS override for visibility"""
+        # Test basic quote block with code fence format
+        zulip_content = "```quote\nThis is the quoted message\n```"
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        # Should use native blockquote with CSS override to force visibility
+        expected_html = '<blockquote data-o-mail-quote="0" style="display: block !important; opacity: 1 !important;">This is the quoted message</blockquote>'
+        self.assertEqual(html_result, expected_html)
+
+    def test_zulip_quote_block_with_following_content(self):
+        """Test quote block followed by regular content"""
+        zulip_content = "```quote\nThis is the quoted message\n```\n\nThis is a new message"
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        # Should have native blockquote with CSS override followed by paragraph
+        self.assertIn('<blockquote data-o-mail-quote="0" style="display: block !important; opacity: 1 !important;">This is the quoted message</blockquote>', html_result)
+        self.assertIn("<p>This is a new message</p>", html_result)
+
+    def test_zulip_quote_block_multiline(self):
+        """Test quote block with multiple lines"""
+        zulip_content = "```quote\nFirst line of quote\nSecond line of quote\n```"
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        # Should convert line breaks to <br> tags within the blockquote with CSS override
+        expected_html = '<blockquote data-o-mail-quote="0" style="display: block !important; opacity: 1 !important;">First line of quote<br>Second line of quote</blockquote>'
+        self.assertEqual(html_result, expected_html)
+
+    def test_zulip_quote_block_real_format(self):
+        """Test with actual Zulip quote format from debug log"""
+        # This is the actual format from the debug log
+        zulip_content = "@_**Jan Suhr|113** [said](https://zulip.nitrokey.com/#narrow/channel/78-Jans-Sandbox/topic/general/near/25519):\n```quote\nvon Zulip 1\n```\n\neins"
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        # Should convert the quote block to native blockquote with CSS override
+        self.assertIn('<blockquote data-o-mail-quote="0" style="display: block !important; opacity: 1 !important;">von Zulip 1</blockquote>', html_result)
+        # Should preserve the attribution and following content
+        self.assertIn("@_**Jan Suhr|113**", html_result)
+        self.assertIn("[said]", html_result)
+        self.assertIn("<p>eins</p>", html_result)
+
+    def test_zulip_quote_block_at_end_of_message(self):
+        """Test quote block at the end of a message"""
+        zulip_content = "```quote\nThis is the quoted message at the end\n```"
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        expected_html = '<blockquote data-o-mail-quote="0" style="display: block !important; opacity: 1 !important;">This is the quoted message at the end</blockquote>'
+        self.assertEqual(html_result, expected_html)
+
+    def test_zulip_quote_always_visible(self):
+        """Test that all Zulip quotes use CSS override to force visibility"""
+        # Test short quote
+        short_quote = "```quote\nShort\n```"
+        html_result = self.zulip_service._markdown_to_html(short_quote, self.gateway)
+        self.assertIn('<blockquote data-o-mail-quote="0"', html_result)
+        self.assertIn('style="display: block !important; opacity: 1 !important;"', html_result)
+        
+        # Test long quote
+        long_quote = "```quote\nThis is a very long quote that would normally be collapsed by Odoo but should always be visible when coming from Zulip gateway\n```"
+        html_result = self.zulip_service._markdown_to_html(long_quote, self.gateway)
+        self.assertIn('<blockquote data-o-mail-quote="0"', html_result)
+        self.assertIn('style="display: block !important; opacity: 1 !important;"', html_result)
+        
+        # Test multi-line quote
+        multiline_quote = "```quote\nLine 1\nLine 2\nLine 3\n```"
+        html_result = self.zulip_service._markdown_to_html(multiline_quote, self.gateway)
+        self.assertIn('<blockquote data-o-mail-quote="0"', html_result)
+        self.assertIn('style="display: block !important; opacity: 1 !important;"', html_result)
+
+    def test_zulip_quote_css_override(self):
+        """Test that Zulip quotes have CSS override to prevent collapse"""
+        zulip_content = "```quote\nCSS override test\n```"
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        # Should use native blockquote element with forced visibility
+        self.assertIn('<blockquote', html_result)
+        self.assertIn('data-o-mail-quote="0"', html_result)
+        self.assertIn('display: block !important', html_result)
+        self.assertIn('opacity: 1 !important', html_result)
+        self.assertIn('CSS override test', html_result)
+
+    def test_no_quote_block_processing(self):
+        """Test that regular content is not affected by quote processing"""
+        zulip_content = "This is a regular message with the word quote in it"
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        expected_html = "<p>This is a regular message with the word quote in it</p>"
+        self.assertEqual(html_result, expected_html)
+
+    def test_zulip_quote_block_with_mentions(self):
+        """Test quote block containing user mentions"""
+        # Create a test user
+        test_user = self.env["res.users"].create({
+            "name": "Quoted User",
+            "login": "quoted.user@example.com",
+            "email": "quoted.user@example.com",
+        })
+
+        zulip_content = "```quote\nMessage from @**Quoted User**: Hello there!\n```"
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        # Should have both native blockquote and mention processing
+        self.assertIn('<blockquote data-o-mail-quote="0"', html_result)
+        self.assertIn(f'data-oe-id="{test_user.partner_id.id}"', html_result)
+        self.assertIn("@Quoted User", html_result)
+        self.assertIn("Hello there!", html_result)
+
+    def test_process_zulip_quotes_method_directly(self):
+        """Test the _process_zulip_quotes method directly"""
+        # Test basic functionality with code fence format
+        content = "```quote\nThis is quoted\n```"
+        result = self.zulip_service._process_zulip_quotes(content)
+        expected = '<blockquote data-o-mail-quote="0">This is quoted</blockquote>'
+        self.assertEqual(result, expected)
+
+        # Test with following content
+        content = "```quote\nThis is quoted\n```\n\nThis is not quoted"
+        result = self.zulip_service._process_zulip_quotes(content)
+        self.assertIn('<blockquote data-o-mail-quote="0">This is quoted</blockquote>', result)
+        self.assertIn("This is not quoted", result)
+        self.assertNotIn('data-o-mail-quote="0".*This is not quoted', result)
+
+    def test_zulip_quote_attribution_cleaning(self):
+        """Test cleaning of Zulip quote attributions with [said](URL) format"""
+        # Test basic attribution cleaning with actual format from logs
+        zulip_content = "@_**Jan Suhr|113** [said](https://zulip.nitrokey.com/#narrow/channel/78-Jans-Sandbox/topic/general/near/25567):\n\nHello world!"
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        # Should clean the attribution but keep the link
+        self.assertIn("Jan Suhr [said](https://zulip.nitrokey.com/#narrow/channel/78-Jans-Sandbox/topic/general/near/25567):", html_result)
+        self.assertNotIn("@_**Jan Suhr|113**", html_result)
+        self.assertIn("Hello world!", html_result)
+
+    def test_zulip_quote_attribution_with_quote_block(self):
+        """Test attribution cleaning combined with quote blocks"""
+        zulip_content = "@_**Jan Suhr|113** [said](https://zulip.nitrokey.com/#narrow/channel/78-Jans-Sandbox/topic/general/near/25567):\n```quote\nvon Zulip 1\n```\n\neins"
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        # Should clean attribution, keep link, and process quote block
+        self.assertIn("Jan Suhr [said](https://zulip.nitrokey.com/#narrow/channel/78-Jans-Sandbox/topic/general/near/25567):", html_result)
+        self.assertNotIn("@_**Jan Suhr|113**", html_result)
+        self.assertIn('<blockquote data-o-mail-quote="0"', html_result)
+        self.assertIn("von Zulip 1", html_result)
+        self.assertIn("eins", html_result)
+
+    def test_zulip_quote_attribution_multiple_users(self):
+        """Test attribution cleaning with different user names and IDs"""
+        # Test with different user name format
+        zulip_content = "@_**Alice Smith|456** [said](https://example.com/link1):\n\nThis is Alice's message."
+        html_result = self.zulip_service._markdown_to_html(zulip_content, self.gateway)
+        
+        self.assertIn("Alice Smith [said](https://example.com/link1):", html_result)
+        self.assertNotIn("@_**Alice Smith|456**", html_result)
+        self.assertIn("This is Alice's message.", html_result)
+
+        # Test with user name containing spaces
+        zulip_content2 = "@_**John Doe Jr|789** [said](https://example.com/link2):\n\nAnother message here."
+        html_result2 = self.zulip_service._markdown_to_html(zulip_content2, self.gateway)
+        
+        self.assertIn("John Doe Jr [said](https://example.com/link2):", html_result2)
+        self.assertNotIn("@_**John Doe Jr|789**", html_result2)
+
+    def test_zulip_quote_attribution_cleaning_method_directly(self):
+        """Test the _clean_zulip_quote_attributions method directly"""
+        # Test basic functionality with [said](URL) format
+        content = "@_**Test User|123** [said](https://example.com/test):\n\nMessage content"
+        result = self.zulip_service._clean_zulip_quote_attributions(content)
+        expected = "Test User [said](https://example.com/test):\n\nMessage content"
+        self.assertEqual(result, expected)
+
+        # Test with multiple attributions
+        content = "@_**User One|111** [said](https://example.com/1):\n\nFirst message\n\n@_**User Two|222** [said](https://example.com/2):\n\nSecond message"
+        result = self.zulip_service._clean_zulip_quote_attributions(content)
+        self.assertIn("User One [said](https://example.com/1):", result)
+        self.assertIn("User Two [said](https://example.com/2):", result)
+        self.assertNotIn("@_**User One|111**", result)
+        self.assertNotIn("@_**User Two|222**", result)
+
+    def test_zulip_quote_attribution_no_match(self):
+        """Test that content without attributions is not affected"""
+        # Test regular content
+        content = "This is a regular message with no attributions"
+        result = self.zulip_service._clean_zulip_quote_attributions(content)
+        self.assertEqual(result, content)
+
+        # Test content with similar but not matching patterns
+        content = "@**Regular Mention** and some text"
+        result = self.zulip_service._clean_zulip_quote_attributions(content)
+        self.assertEqual(result, content)
+
+        # Test old format without [said](URL) - should not match
+        content = "@_**Jan Suhr|113** said:\n\nOld format"
+        result = self.zulip_service._clean_zulip_quote_attributions(content)
+        self.assertEqual(result, content)  # Should remain unchanged
+
+    def test_zulip_quote_attribution_edge_cases(self):
+        """Test edge cases for attribution cleaning"""
+        # Test with special characters in user name
+        content = "@_**User-Name_123|999** [said](https://example.com/special):\n\nSpecial chars test"
+        result = self.zulip_service._clean_zulip_quote_attributions(content)
+        self.assertIn("User-Name_123 [said](https://example.com/special):", result)
+        self.assertNotIn("@_**User-Name_123|999**", result)
+
+        # Test with empty user name (edge case)
+        content = "@_**|123** [said](https://example.com/empty):\n\nEmpty name test"
+        result = self.zulip_service._clean_zulip_quote_attributions(content)
+        self.assertIn("[said](https://example.com/empty):", result)
+        self.assertNotIn("@_**|123**", result)
+
+        # Test with complex URL containing special characters
+        content = "@_**Test User|456** [said](https://zulip.example.com/#narrow/channel/123-test/topic/general/near/789):\n\nComplex URL test"
+        result = self.zulip_service._clean_zulip_quote_attributions(content)
+        self.assertIn("Test User [said](https://zulip.example.com/#narrow/channel/123-test/topic/general/near/789):", result)
+        self.assertNotIn("@_**Test User|456**", result)

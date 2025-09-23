@@ -18,6 +18,11 @@ try:
 except (ImportError, IOError) as err:
     _logger.debug(err)
 
+try:
+    import html2text
+except (ImportError, IOError) as err:
+    _logger.debug(err)
+
 
 class MailGatewayZulipService(models.AbstractModel):
     _inherit = "mail.gateway.abstract"
@@ -109,12 +114,53 @@ class MailGatewayZulipService(models.AbstractModel):
         _logger.debug("No user found for Zulip name: %s", zulip_name)
         return None
 
+    def _clean_zulip_quote_attributions(self, content):
+        """Clean up Zulip quote attributions to show clean user names"""
+        # Pattern: @_**User Name|ID** [said](URL):
+        # Should become: User Name [said](URL):
+        attribution_pattern = r'@_\*\*([^|]+)\|\d+\*\* (\[said\]\([^)]+\)):'
+        
+        def replace_attribution(match):
+            user_name = match.group(1).strip()
+            said_link = match.group(2)  # Captures [said](URL)
+            return f'{user_name} {said_link}:'
+        
+        return re.sub(attribution_pattern, replace_attribution, content)
+
+    def _process_zulip_quotes(self, content):
+        """Process Zulip quote code fences to native-looking always-visible blockquotes"""
+        _logger.debug("=== PROCESSING ZULIP QUOTES ===")
+        _logger.debug("Input content: %s", content)
+        
+        # Pattern to match ```quote\ncontent\n```
+        quote_pattern = r'```quote\n(.+?)\n```'
+        
+        def replace_quote(match):
+            quote_content = match.group(1).strip()
+            _logger.debug("Found quote content: %s", quote_content)
+            # Convert line breaks to <br> for proper HTML formatting
+            quote_html = quote_content.replace('\n', '<br>')
+            # Use native blockquote with forced visibility via inline CSS
+            result = f'<blockquote data-o-mail-quote="0" style="display: block !important; opacity: 1 !important;">{quote_html}</blockquote>'
+            _logger.debug("Generated quote HTML: %s", result)
+            return result
+        
+        processed_content = re.sub(quote_pattern, replace_quote, content, flags=re.DOTALL)
+        _logger.debug("Final processed content: %s", processed_content)
+        return processed_content
+
     def _markdown_to_html(self, markdown_text, gateway=None):
-        """Convert Zulip markdown to HTML with user mention conversion"""
+        """Convert Zulip markdown to HTML with user mention conversion and quote processing"""
         if not markdown_text:
             return ""
 
         content = markdown_text
+
+        # Clean up Zulip quote attributions first
+        content = self._clean_zulip_quote_attributions(content)
+
+        # Process Zulip quote blocks (after attribution cleaning)
+        content = self._process_zulip_quotes(content)
 
         # Convert Zulip user mentions (@**User Name**) to Odoo mentions if gateway is provided
         if gateway:
@@ -132,16 +178,34 @@ class MailGatewayZulipService(models.AbstractModel):
             # Replace Zulip mentions with Odoo mentions
             content = re.sub(r'@\*\*([^*]+)\*\*', replace_mention, content)
 
-        return f"<p>{content}</p>"
+        # Wrap in paragraph tags if not already wrapped in block elements
+        if not content.startswith(('<blockquote>', '<div>', '<p>')):
+            content = f"<p>{content}</p>"
+        
+        return content
 
     def _html_to_markdown(self, html_text):
-        """Convert HTML to Zulip markdown (simplified)"""
+        """Convert HTML to Zulip markdown using html2text"""
         if not html_text:
             return ""
 
-        # Simple conversion - in practice, you might want to use html2text
-        text = html2plaintext(html_text)
-        return text
+        try:
+            # Use html2text for proper HTML to Markdown conversion
+            h = html2text.HTML2Text()
+            h.ignore_links = False  # Keep links
+            h.body_width = 0  # Don't wrap lines
+            h.unicode_snob = True  # Use unicode characters
+            h.escape_snob = True  # Escape special characters properly
+            
+            # Convert HTML to Markdown
+            markdown_text = h.handle(html_text).strip()
+            return markdown_text
+            
+        except Exception as e:
+            # Fallback to simple conversion if html2text fails
+            _logger.warning("html2text conversion failed, falling back to simple conversion: %s", str(e))
+            text = html2plaintext(html_text)
+            return text
 
     def _get_message_body(self, record):
         """Override to add 'Send from USER NAME:' prefix to messages sent to Zulip"""

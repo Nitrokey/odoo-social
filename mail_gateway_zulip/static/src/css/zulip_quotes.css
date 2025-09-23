@@ -1,0 +1,45 @@
+/* Zulip Quote Visibility Override
+ * Forces all blockquotes in message content to be always visible
+ * and hides "read more" buttons to prevent collapse behavior
+ */
+
+/* Force visibility for all blockquotes in message content */
+.o_Message_content blockquote[data-o-mail-quote] {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* Hide read more buttons for all quotes in messages */
+.o_Message_content .o_Message_readMoreLess {
+    display: none !important;
+}
+
+/* Specific targeting for Zulip quotes (if data attribute gets fixed) */
+.o_Message_content blockquote[data-o-mail-quote="0"] {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* Alternative: Target by adjacent read more button */
+.o_Message_content .o_Message_readMoreLess + blockquote {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Ensure blockquotes maintain proper styling while being visible */
+.o_Message_content blockquote {
+    margin: 1rem 0;
+    padding-left: 1rem;
+    border-left: 4px solid #dee2e6;
+    font-style: italic;
+    color: #6c757d;
+}
