@@ -1,4 +1,4 @@
-# Copyright 2024 Dixmit
+# Copyright 2025 Nitrokey GmbH
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
 from odoo.addons.mail.controllers.discuss import DiscussController
