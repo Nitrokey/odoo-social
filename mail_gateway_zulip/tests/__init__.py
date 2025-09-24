@@ -1,2 +1,2 @@
-# Copyright 2024 Dixmit
+# Copyright 2025 Nitrokey GmbH
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
