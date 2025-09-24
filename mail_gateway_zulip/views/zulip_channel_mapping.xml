@@ -14,7 +14,9 @@
                 <field name="gateway_id" />
                 <field name="zulip_stream" />
                 <field name="zulip_topic" />
+                <field name="mapping_type" />
                 <field name="odoo_channel_id" />
+                <field name="task_id" />
                 <field name="status" />
                 <field name="active" />
                 <field name="last_sync" />
@@ -61,8 +63,8 @@
                         </group>
                     </group>
                     <group>
-                        <group string="Odoo Channel">
-                            <field name="odoo_channel_id" />
+                        <group string="Destination Type">
+                            <field name="mapping_type" widget="radio" />
                         </group>
                         <group string="Status">
                             <field name="last_sync" />
@@ -71,6 +73,15 @@
                                 name="error_message"
                                 attrs="{'invisible': [('status', '!=', 'error')]}"
                             />
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Chat Channel Destination" attrs="{'invisible': [('mapping_type', '!=', 'channel')]}">
+                            <field name="odoo_channel_id" attrs="{'required': [('mapping_type', '=', 'channel')]}" />
+                        </group>
+                        <group string="Project Task Destination" attrs="{'invisible': [('mapping_type', '!=', 'project_task')]}">
+                            <field name="project_id" attrs="{'required': [('mapping_type', '=', 'project_task')]}" />
+                            <field name="task_id" attrs="{'required': [('mapping_type', '=', 'project_task')]}" />
                         </group>
                     </group>
                 </sheet>
@@ -88,7 +99,10 @@
                 <field name="gateway_id" />
                 <field name="zulip_stream" />
                 <field name="zulip_topic" />
+                <field name="mapping_type" />
                 <field name="odoo_channel_id" />
+                <field name="project_id" />
+                <field name="task_id" />
                 <filter
                     string="Active"
                     name="active"
@@ -98,6 +112,17 @@
                     string="Inactive"
                     name="inactive"
                     domain="[('active', '=', False)]"
+                />
+                <separator />
+                <filter
+                    string="Chat Channel Mappings"
+                    name="mapping_channel"
+                    domain="[('mapping_type', '=', 'channel')]"
+                />
+                <filter
+                    string="Project Task Mappings"
+                    name="mapping_project_task"
+                    domain="[('mapping_type', '=', 'project_task')]"
                 />
                 <separator />
                 <filter
@@ -123,9 +148,19 @@
                         context="{'group_by': 'gateway_id'}"
                     />
                     <filter
+                        string="Mapping Type"
+                        name="group_mapping_type"
+                        context="{'group_by': 'mapping_type'}"
+                    />
+                    <filter
                         string="Stream"
                         name="group_stream"
                         context="{'group_by': 'zulip_stream'}"
+                    />
+                    <filter
+                        string="Project"
+                        name="group_project"
+                        context="{'group_by': 'project_id'}"
                     />
                     <filter
                         string="Status"

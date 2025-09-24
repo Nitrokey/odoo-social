@@ -257,6 +257,36 @@ class MailGatewayZulipService(models.AbstractModel):
         self._post_process_message(new_message, chat)
         return new_message
 
+    def _process_zulip_message_to_task(
+        self, task, content, sender_email, sender_full_name, message_id, gateway
+    ):
+        """Process a Zulip message and create corresponding message on project task"""
+        task.ensure_one()
+
+        # Convert markdown to HTML with mention conversion
+        body = self._markdown_to_html(content, gateway)
+
+        # Get or create author
+        author = self._get_author_from_email(gateway, sender_email, sender_full_name)
+
+        # Create message on project task as regular chatter message
+        # Use no_zulip_sync context to prevent infinite loops
+        new_message = task.with_context(no_zulip_sync=True).message_post(
+            body=body,
+            author_id=author._name == "res.partner" and author.id,
+            subtype_xmlid="mail.mt_comment",  # Regular comment, not internal note
+            message_type="comment",
+        )
+
+        _logger.info(
+            "Created message %s on task %s from Zulip (original Zulip message: %s)",
+            new_message.id,
+            task.name,
+            message_id,
+        )
+
+        return new_message
+
     def _get_author_from_email(self, gateway, email, full_name):
         """Get or create author from email and name with enhanced mapping"""
         if not email:
@@ -1158,20 +1188,30 @@ class MailGatewayZulipService(models.AbstractModel):
             )
 
             if mapping:
-                chat = mapping.odoo_channel_id
+                if mapping.mapping_type == "project_task":
+                    # Handle project task mapping
+                    self._process_zulip_message_to_task(
+                        mapping.task_id, content, sender_email, sender_full_name, message_id, gateway
+                    )
+                else:
+                    # Handle channel mapping
+                    chat = mapping.odoo_channel_id
+                    self._process_zulip_message(
+                        chat, content, sender_email, sender_full_name, message_id, gateway
+                    )
                 # Update mapping stats
                 mapping.update_sync_stats()
             else:
-                # Fallback to auto-creation
+                # Fallback to auto-creation for channel mapping only
                 channel_token = self._get_channel_token(stream_name, topic_name)
                 chat = self._get_channel(gateway, channel_token, {})
 
-            if not chat:
-                return
+                if not chat:
+                    return
 
-            self._process_zulip_message(
-                chat, content, sender_email, sender_full_name, message_id, gateway
-            )
+                self._process_zulip_message(
+                    chat, content, sender_email, sender_full_name, message_id, gateway
+                )
 
         except Exception as e:
             _logger.error(

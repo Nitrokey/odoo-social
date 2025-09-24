@@ -6,7 +6,7 @@
     "license": "AGPL-3",
     "author": "Nitrokey, Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/social",
-    "depends": ["mail_gateway"],
+    "depends": ["mail_gateway", "project"],
     "data": [
         "security/ir.model.access.csv",
         "data/cron.xml",
