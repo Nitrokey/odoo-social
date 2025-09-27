@@ -407,7 +407,7 @@ class TestZulipMessageProcessing(TransactionCase):
         
         # Verify that the user name prefix is included in the content
         content = call_args["content"]
-        self.assertIn("Sent from John Doe:", content)
+        self.assertIn("**[John Doe]:**", content)
         self.assertIn("Hello Zulip!", content)
 
         # Verify notification status
@@ -479,7 +479,7 @@ class TestZulipMessageProcessing(TransactionCase):
         markdown_content = self.zulip_service._html_to_markdown(body_with_prefix)
         
         # Verify the prefix appears as bold markdown
-        self.assertIn("**Sent from Test User:**", markdown_content)
+        self.assertIn("**[Test User]:**", markdown_content)
         self.assertIn("Hello World!", markdown_content)
 
     def test_zulip_mention_conversion(self):

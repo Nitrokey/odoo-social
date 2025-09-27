@@ -213,7 +213,7 @@ class MailGatewayZulipService(models.AbstractModel):
             return text
 
     def _get_message_body(self, record):
-        """Override to add 'Send from USER NAME:' prefix to messages sent to Zulip"""
+        """Override to add '[USER NAME]:' prefix to messages sent to Zulip"""
         body = super()._get_message_body(record)
         
         # Get the author from the mail message
@@ -221,7 +221,7 @@ class MailGatewayZulipService(models.AbstractModel):
         if author and author.name:
             user_name = author.name
             # Add prefix as HTML (will be converted to Markdown later)
-            body = f"<p>Sent from <strong>{user_name}</strong>:</p>\n{body}"
+            body = f"<strong>[{user_name}]</strong>: {body}"
         
         return body
 

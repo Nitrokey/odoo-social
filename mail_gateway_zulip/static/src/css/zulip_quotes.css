@@ -1,10 +1,10 @@
 /* Zulip Quote Visibility Override
- * Forces all blockquotes in message content to be always visible
+ * Forces all elements with data-o-mail-quote attribute in message content to be always visible
  * and hides "read more" buttons to prevent collapse behavior
  */
 
-/* Force visibility for all blockquotes in message content */
-.o_Message_content blockquote[data-o-mail-quote] {
+/* Force visibility for all elements with data-o-mail-quote in message content */
+.o_Message_content *[data-o-mail-quote] {
     display: block !important;
     opacity: 1 !important;
     visibility: visible !important;
@@ -19,7 +19,7 @@
 }
 
 /* Specific targeting for Zulip quotes (if data attribute gets fixed) */
-.o_Message_content blockquote[data-o-mail-quote="0"] {
+.o_Message_content *[data-o-mail-quote="0"] {
     display: block !important;
     opacity: 1 !important;
     visibility: visible !important;
@@ -29,7 +29,7 @@
 }
 
 /* Alternative: Target by adjacent read more button */
-.o_Message_content .o_Message_readMoreLess + blockquote {
+.o_Message_content .o_Message_readMoreLess + *[data-o-mail-quote] {
     display: block !important;
     opacity: 1 !important;
     visibility: visible !important;
