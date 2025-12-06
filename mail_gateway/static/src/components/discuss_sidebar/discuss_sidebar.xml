@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
     <t t-inherit="mail.DiscussSidebar" t-inherit-mode="extension">
-        <xpath expr="//*[@name='beforeCategoryChat']" position="before">
+        <xpath expr="//DiscussSidebarCategory[hasclass('o_DiscussSidebar_categoryChat')]" position="before">
             <t
                 t-foreach="discussView.discuss.categoryGateways"
                 t-as="categoryGateway"
