@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+
+    <t t-inherit="mail.Message" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('o_Message_originThread')]" position="after">
+            <t t-if="messageView.message.gatewayThread">
+                <div
+                    class="o_Message_originThread"
+                    t-att-class="{ 'o-message-selected': isSelected }"
+                >
+                    on <a
+                        class="o_Message_originThreadLink"
+                        t-att-href="messageView.message.gatewayThread.url"
+                        t-on-click="messageView.onClickGatewayThread"
+                    ><t t-if="messageView.message.gatewayThread.displayName"><t
+                                t-esc="messageView.message.gatewayThread.displayName"
+                            /></t><t t-else="">document</t></a>
+                </div>
+            </t>
+        </xpath>
+    </t>
+</templates>
