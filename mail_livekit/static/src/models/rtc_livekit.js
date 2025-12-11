@@ -1773,11 +1773,10 @@ registerInstancePatchModel(
     },
 
     /**
-     * Override toggleCamera to use LiveKit service
+     * Override _toggleLocalVideoTrack to use LiveKit service
      */
-    async toggleCamera() {
-      console.log("📹 LiveKit: toggleCamera called");
-
+    async _toggleLocalVideoTrack({ type, force }) {
+      this._super({ type, force });
       if (this.livekitEnabled && this.livekitService) {
         try {
           const localParticipant = this.livekitService.getLocalParticipant();
@@ -1800,12 +1799,7 @@ registerInstancePatchModel(
           }
         } catch (error) {
           console.error("📹 LiveKit: Error toggling camera:", error);
-          // Fallback to parent method if LiveKit fails
-          return this._super();
         }
-      } else {
-        console.log("📹 LiveKit: Not enabled, using parent toggleCamera");
-        return this._super();
       }
     },
 
