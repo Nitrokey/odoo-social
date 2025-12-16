@@ -20,6 +20,11 @@
             "mail_livekit/static/src/models/rtc_livekit.js",
             "mail_livekit/static/src/models/rtc_controller_livekit.js",
         ],
+        'mail.assets_discuss_public': [
+            "mail_livekit/static/src/models/*.js",
+            "mail_livekit/static/src/services/*.js",
+            "mail_livekit/static/src/lib/livekit-client.umd.js",
+        ]
     },
     "external_dependencies": {
         "python": ["livekit-api", "PyJWT"],
