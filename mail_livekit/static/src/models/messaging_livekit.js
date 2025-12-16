@@ -178,6 +178,20 @@ registerInstancePatchModel(
         this.livekitJoinCallData = window.livekitJoinCallData;
       }
     },
+
+    /**
+     * Override. Remove focused participant video to trigger video re-attachment.
+     */
+    toggleFocusedRtcSession(sessionId) {
+      this._super(...arguments);
+      let focusedRtcSession = this.focusedRtcSession;
+      if (focusedRtcSession && focusedRtcSession.partner) {
+        let exVideo = document.querySelector(`video[data-participant="partner_${this.focusedRtcSession.partner.id}"]`);
+        if (exVideo) {
+          exVideo.remove();
+        }
+      }
+    },
   }
 );
 
