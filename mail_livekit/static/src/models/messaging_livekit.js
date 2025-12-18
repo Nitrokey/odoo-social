@@ -184,12 +184,15 @@ registerInstancePatchModel(
      */
     toggleFocusedRtcSession(sessionId) {
       this._super(...arguments);
+      let exVideo = false;
       let focusedRtcSession = this.focusedRtcSession;
       if (focusedRtcSession && focusedRtcSession.partner) {
-        let exVideo = document.querySelector(`video[data-participant="partner_${this.focusedRtcSession.partner.id}"]`);
-        if (exVideo) {
-          exVideo.remove();
-        }
+        exVideo = document.querySelector(`video[data-participant='partner_${this.focusedRtcSession.partner.id}']`);
+      } else if (focusedRtcSession && focusedRtcSession.guest) {
+        exVideo = document.querySelector(`video[data-participant='guest_${this.focusedRtcSession.guest.id}']`);
+      }
+      if (exVideo) {
+        exVideo.remove();
       }
     },
   }
