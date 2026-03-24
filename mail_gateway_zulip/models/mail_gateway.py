@@ -13,7 +13,7 @@ class MailGateway(models.Model):
     _inherit = "mail.gateway"
 
     gateway_type = fields.Selection(
-        selection_add=[("zulip", "Zulip")], ondelete={"zulip": "set default"}
+        selection_add=[("zulip", "Zulip")], ondelete={"zulip": "cascade"}
     )
     zulip_server_url = fields.Char(
         string="Zulip Server URL",
